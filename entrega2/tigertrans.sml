@@ -142,14 +142,14 @@ fun simpleVar(acc, nivel) = case acc of
 			InReg r => Ex (TEMP r)
 			| InFrame k => let fun aux 0 = TEMP fp
 					   | aux n = MEM (BINOP(PLUS, fpPrevLev, aux(n-1)))
-				       in Ex (MEM(BINOP(PLUS, aux(!actualLevel - nivel),CONST k)))
+				       in Ex (MEM(BINOP(PLUS, aux(getActualLev() - nivel),CONST k)))
 				       end
 										 (* COMPLETADO *)
 
 fun varDec(acc) = simpleVar(acc, getActualLev())
 
 fun fieldVar(var, field) = 
-	Ex (CONST 0) (*COMPLETAR*)
+			Ex (CONST 0) (*COMPLETAR*)
 
 fun subscriptVar(arr, ind) =
 let
@@ -167,12 +167,12 @@ end
 
 fun recordExp l = (* usaremos una funcion de runtime *)
 	let val ret = newtemp()
-	    fun genTemps n = List.tabulate(n, newtemp())
+	fun genTemps n = List.tabulate(n, (fn _ => newtemp()))
 	    val regs=genTemps(length l)
 	    fun aux((e,s),t)=(MOVE (TEMP t, unEx e), s, TEMP t)
 	    val lexps=List.map aux (ListPair.zip (l, args))
 	    val lexps'=List.map #1 lexps
-	    val l'=List.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
+	    val l'=Listsort.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
 	in
 	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))],MOVE(TEMP ret,TEMP rv)], 
 	            TEMP ret))
