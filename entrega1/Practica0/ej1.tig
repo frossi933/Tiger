@@ -1,0 +1,13 @@
+let
+    type lista = {item:int, resto:lista}
+    /* Definir agrega */
+    function agrega(l:lista, i:int):lista = if l=nil then lista {item=i, resto=nil}
+                                                     else lista {item=i, resto=agrega(l.resto, l.item)}
+    /* Definir filtra */
+    function filtra(l:lista, n:int):lista = if l=nil then nil
+                                                     else if n=l.item then filtra(l.resto, n)
+                                                                      else lista {item=l.item, resto=filtra(l.resto, n)}
+in
+    nil
+end
+
