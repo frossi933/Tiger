@@ -1,9 +1,9 @@
-open tigerabs
-
 structure Ej2 =
 struct
 
-fun cantprints (CallExp ({func = "print", args = expl },_))        = 1 + (List.foldr op+ 0 (List.map cantprints expl))
+open tigerabs
+
+fun cantprints (CallExp ({func = "print",args},_))        = 1 + (List.foldr op+ 0 (List.map cantprints args))
 |   cantprints (OpExp ({left=l, right=r, ...},_))                  = cantprints l + cantprints r
 |   cantprints (RecordExp ({fields=lf, ...}, _))                   = List.foldr op+ 0 (List.map (fn (_, e) =>   cantprints e) lf)
 |   cantprints (SeqExp (expl, _))                                  = (List.foldr op+ 0 (List.map cantprints expl)) 
@@ -17,3 +17,4 @@ fun cantprints (CallExp ({func = "print", args = expl },_))        = 1 + (List.f
 |   cantprints (ArrayExp ({size=esize, init=einit, ... }, 0))      = cantprints esize + cantprints einit
 |   cantprints _                                                   = 0
 
+end
