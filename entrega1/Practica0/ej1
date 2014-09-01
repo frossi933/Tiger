@@ -1,9 +1,0 @@
-let
-    type lista = {item:int, resto:lista}
-    /* Definir agrega */
-    fun agrega (lista:lista, i:int) = 
-    /* Definir filtra */
-in
-    nil
-end
-
