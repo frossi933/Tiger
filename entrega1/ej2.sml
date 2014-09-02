@@ -3,9 +3,9 @@ struct
 
 open tigerabs
 
-fun cantprints (CallExp ({func = "print", args},_)) = if (List.filter (fn (StringExp _) => true | _ => false) args)<>nil 
-                                                      then (List.foldr op+ 0 (List.map cantprints args)) 
-                                                      else 1 + (List.foldr op+ 0 (List.map cantprints args))
+fun cantprints (CallExp ({func = "print", args},_)) = if (List.filter (fn (StringExp _) => true | _ => false) args)=[] 
+                                                      then 1 + (List.foldr op+ 0 (List.map cantprints args)) 
+                                                      else (List.foldr op+ 0 (List.map cantprints args))
 |   cantprints (OpExp ({left, right, ...},_))      = cantprints left + cantprints right
 |   cantprints (RecordExp ({fields, ...}, _))      = List.foldr op+ 0 (List.map (fn (_, e) =>   cantprints e) fields)
 |   cantprints (SeqExp (expl, _))                  = (List.foldr op+ 0 (List.map cantprints expl)) 
@@ -16,7 +16,7 @@ fun cantprints (CallExp ({func = "print", args},_)) = if (List.filter (fn (Strin
 |   cantprints (ForExp ({lo, hi, body, ... }, _))  = cantprints lo + cantprints hi + cantprints body
 |   cantprints (WhileExp ({test, body}, _))        = cantprints test + cantprints body
 |   cantprints (LetExp ({body, ... }, _))          = cantprints body
-|   cantprints (ArrayExp ({size, init, ... }, 0))  = cantprints size + cantprints init
+|   cantprints (ArrayExp ({size, init, ... }, _))  = cantprints size + cantprints init
 |   cantprints _                                   = 0
 
 end
