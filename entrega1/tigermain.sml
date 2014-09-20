@@ -1,5 +1,3 @@
-open ej2
-
 open tigerlex
 open tigergrm
 open tigerescap
@@ -33,7 +31,6 @@ fun main(args) =
 		val _ = if arbol then tigerpp.exprAst expr else ()
 	in
 		transProg(expr);
-                (* print ("\nTiene " ^ Int.toString(cantprints(expr)) ^ " prints\n"); *)
 		print "yes!!\n"
 	end	handle Fail s => print("Fail: "^s^"\n")
 

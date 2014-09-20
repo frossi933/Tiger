@@ -1,15 +1,15 @@
 # Unix makefile for tigermain example
 
-HOME=~
+HOME=/home/alumno
 MOSMLHOME=${HOME}/mosml
 MOSMLTOOLS=camlrunm $(MOSMLHOME)/tools
-MOSMLLEX=mosmllex
-MOSMLYACC=mosmlyac -v
+MOSMLLEX=${MOSMLHOME}/bin/mosmllex
+MOSMLYACC=${MOSMLHOME}/bin/mosmlyac -v
 
 GCC=gcc
 CFLAGS= -g
-MOSMLC=mosmlc -c -liberal
-MOSMLL=mosmlc
+MOSMLC=${MOSMLHOME}/bin/mosmlc -c -liberal
+MOSMLL=${MOSMLHOME}/bin/mosmlc
 
 # Unix
 REMOVE=rm -f

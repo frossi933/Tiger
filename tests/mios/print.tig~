@@ -1,1 +1,4 @@
-"hola"
+let
+        var g:="hola"
+in print(g,)
+end
