@@ -309,8 +309,18 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    in 
 		        (venv', tenv, []) 
 		    end                                                         (* COMPLETADO *)
-		| trdec (venv,tenv) (TypeDec ts) =
-			(venv, tenv, []) (*COMPLETAR*)
+		| trdec (venv, tenv) (TypeDec []) = (venv, tenv, [])
+		| trdec (venv, tenv) (TypeDec ts) =
+			let 
+				val nl = #2(hd ts)
+				val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) ts))) <> List.length ts) 
+		                then error("multiples declaraciones de un tipo en un batch", nl) else ()
+				val ltdec = List.map (#1) ts
+				val tenv' = (topsort.fijaTipos ltdec tenv)
+				                    handle Ciclo => error("existe un ciclo en la definicion de tipos", nl)
+		    in (venv, tenv', [])
+		    end                                             (* COMPLETADO *)
+		    
 	    and trty (NameTy s, nl) = (case tabBusca(s, tenv) of
 		                                        NONE => error("No existe el tipo "^s, nl)
 		                                        | SOME ty => ty)

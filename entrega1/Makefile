@@ -2,14 +2,22 @@
 
 HOME=/home/alumno
 MOSMLHOME=${HOME}/mosml
-MOSMLTOOLS=camlrunm $(MOSMLHOME)/tools
+MOSMLTOOLS=${MOSMLHOME}/bin/camlrunm $(MOSMLHOME)/tools
+
 MOSMLLEX=${MOSMLHOME}/bin/mosmllex
 MOSMLYACC=${MOSMLHOME}/bin/mosmlyac -v
 
+#MOSMLLEX=mosmllex
+#MOSMLYACC=mosmlyac
+
 GCC=gcc
 CFLAGS= -g
+
 MOSMLC=${MOSMLHOME}/bin/mosmlc -c -liberal
 MOSMLL=${MOSMLHOME}/bin/mosmlc
+
+#MOSMLC=mosmlc -c -liberal
+#MOSMLL=mosmlc
 
 # Unix
 REMOVE=rm -f
@@ -64,16 +72,19 @@ depend: tigerabs.sml tigergrm.sml tigerlex.sml tigermain.sml \
 	$(MOSMLTOOLS)/mosmldep >> Makefile
 
 ### DO NOT DELETE THIS LINE
+topsort.uo: topsort.ui tigersres.uo 
 tigerpp.uo: tigerabs.uo 
+tigertemp.uo: tigertemp.ui 
+tigertab.uo: tigertab.ui 
+tigersres.uo: tigertab.ui tigertips.uo tigertemp.ui tigerabs.uo 
+tigerlex.uo: tigergrm.ui tigernlin.uo 
+tigerseman.uo: tigerseman.ui tigersres.uo tigertab.ui topsort.ui \
+    tigertemp.ui tigerabs.uo 
 tigerescap.ui: tigerabs.uo 
 tigergrm.ui: tigerabs.uo 
-tigerseman.ui: tigerabs.uo 
-tigerescap.uo: tigerescap.ui tigertab.ui tigerabs.uo 
-tigerseman.uo: tigerseman.ui tigersres.uo tigertab.ui tigerabs.uo 
 tigergrm.uo: tigergrm.ui tigernlin.uo tigerabs.uo 
-tigersres.uo: tigertab.ui tigertips.uo tigertemp.ui tigerabs.uo 
-tigertab.uo: tigertab.ui 
+tigerescap.uo: tigerescap.ui tigertab.ui tigerabs.uo 
 tigermain.uo: tigerseman.ui tigerescap.ui tigergrm.ui tigerlex.uo \
     tigerpp.uo 
-tigertemp.uo: tigertemp.ui 
-tigerlex.uo: tigergrm.ui tigernlin.uo 
+topsort.ui: tigerseman.ui tigerabs.uo 
+tigerseman.ui: tigertab.ui tigertips.uo tigerabs.uo 
