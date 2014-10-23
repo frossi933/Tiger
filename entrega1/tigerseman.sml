@@ -9,6 +9,7 @@ type expty = {exp: unit, ty: Tipo}
 type venv = (string, EnvEntry) tigertab.Tabla
 type tenv = (string, Tipo) tigertab.Tabla
 
+fun showTenv env = List.foldl (fn ((n,t),res) => n^"->"^printTipo t^"\n"^res) "" (tabAList env)
 val tab_tipos : (string, Tipo) Tabla = tabInserList(
 	tabNueva(),
 	[("int", TInt), ("string", TString)])
@@ -226,16 +227,18 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		| trexp(ArrayExp({typ, size, init}, nl)) =
 			let 
 			    val sizTy = #ty (trexp size)
-			    val _ = if sizTy <> TInt orelse sizTy <> TROInt 
+			    val _ = if not(tiposIguales sizTy TInt) 
 			            then error("El tamaño del arreglo no es un numero", nl) else ()
-			    val typTy = (case tabBusca (typ, tenv) of
-			                    SOME t => t
+			    val (resty,typTy) = (case tabBusca (typ, tenv) of
+			                    SOME (ty as (TArray (t,_))) => (ty,t)
+					    | SOME _ => error(typ^" no es un arreglo", nl)
 			                    | NONE => error("No existe el tipo "^typ, nl))
 			    val iniTy = #ty (trexp init)
+		   val _ = (print (printTipo typTy);print "\n"; print (printTipo iniTy))
 			    val _ = if not (tiposIguales iniTy typTy) 
 			            then error("No coincide el tipo del inicializador", nl) else ()
 			in
-			    {exp=(), ty=TUnit}
+			    {exp=(), ty=resty }
 			end                                    (*COMPLETADO*) 
 		and trvar(SimpleVar s, nl) =
 		    (case tabBusca (s, venv) of
@@ -263,7 +266,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                               (*COMPLETADO*)
 		and trdec (venv, tenv) (VarDec ({name,escape,typ=NONE,init},nl)) = 
 		    let 
-		        val {exp=initE, ty=iniTy} = trexp init
+		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
 		    in 
 		        if tiposIguales iniTy TNil then error("no se puede determinar el tipo de "^name, nl)
 		                                   else (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
@@ -273,7 +276,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		        val sTy = (case tabBusca (s, tenv) of
 		                    SOME t => t
 		                    | NONE => error("No existe el tipo", nl))
-		        val {exp=initE, ty=iniTy} = trexp init
+		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
 		    in 
 		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
 		                                  else error("No coinciden los tipos", nl)
@@ -316,7 +319,9 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 				val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) ts))) <> List.length ts) 
 		                then error("multiples declaraciones de un tipo en un batch", nl) else ()
 				val ltdec = List.map (#1) ts
+				val _ = (print "ENTORNOOOOOOO ANTES #################\n"; (print o showTenv) tenv;print "FIN #################\n")
 				val tenv' = (topsort.fijaTipos ltdec tenv)
+				val _ = (print "ENTORNOOOOOOOO DESPUEST #################\n"; (print o showTenv) tenv';print "FIN #################\n")
 				                    (* handle Ciclo => error("existe un ciclo en la definicion de tipos", nl) *)
 		    in (venv, tenv', [])
 		    end                                             (* COMPLETADO *)
@@ -337,7 +342,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 fun transProg ex =
 	let	val main =
 				LetExp({decs=[FunctionDec[({name="_tigermain", params=[],
-								result=NONE, body=ex}, 0)]],
+								result=NONE, body=SeqExp ([ex, UnitExp 0],~1)}, 0)]],
 						body=UnitExp 0}, 0)
 		val _ = transExp(tab_vars, tab_tipos) main
 	in	print "bien!\n" end

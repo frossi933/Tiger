@@ -5,20 +5,20 @@ open tigersres
 
 exception Ciclo
 fun topsort graph =
-    let	fun cmp(x, y) = x=y
-    	fun mem(x, []) = false
-    	| mem(x, y::l) = cmp(x, y) orelse mem(x, l)
-    	fun nexts(a, []) = []
-    	| nexts(a, (x, y)::pairs) =
-    		if cmp(a, x) then y::nexts(a, pairs) else nexts(a, pairs)
-    	fun sort([], path, visited) = visited
-		| sort(x::xs, path, visited) =
-			if mem(x, path) then raise Fail "Ciclo"
-			else sort(xs, path,
-					if mem(x, visited) then visited
-					else x::sort(nexts(x, graph), x::path, visited))
-		val (starts, _) = ListPair.unzip graph
-	in	sort(starts, [], []) end
+    let    fun cmp(x, y) = x=y
+        fun mem(x, []) = false
+        | mem(x, y::l) = cmp(x, y) orelse mem(x, l)
+        fun nexts(a, []) = []
+        | nexts(a, (x, y)::pairs) =
+            if cmp(a, x) then y::nexts(a, pairs) else nexts(a, pairs)
+        fun sort([], path, visited) = visited
+        | sort(x::xs, path, visited) =
+            if mem(x, path) then raise Fail "Ciclo"
+            else sort(xs, path,
+                    if mem(x, visited) then visited
+                    else x::sort(nexts(x, graph), x::path, visited))
+        val (starts, _) = ListPair.unzip graph
+    in    sort(starts, [], []) end
 
 fun genPares (lt:{name: symbol, ty: ty} list) = 
   let
@@ -32,21 +32,22 @@ fun genPares (lt:{name: symbol, ty: ty} list) =
 
 
 fun procesa [] _ _ env = env
-| procesa (sorted as (h::t)) decs recs env =
-	let val (ps, ps') = List.partition (fn {ty=RecordTy lt, ... } => List.exists (fn x => #name(x)=h) lt
-										| {ty=NameTy t, ...} => h=t
-										| {ty=ArrayTy t, ...} => h=t) decs
-		val ttopt = (case List.find (fn x => h=(#name(x))) recs of
-						SOME {ty=ArrayTy _, name} => NONE
-						| SOME {ty=RecordTy _, ...} => NONE
-						| SOME _ => NONE
-						| NONE => (case tabBusca (h, env) of
-						            SOME t => SOME t
-						            | _ => raise Fail (h^" no existe!"))) 
-		val env' = (case ttopt of
-		            SOME tt => List.foldr (fn ({name, ty=NameTy ty}, env') => tabInserta (name, tt, env)
-		                                   | _ => raise Fail "error interno 666 :S") env ps
-		            | _ => env)
+| procesa (sorted as (h::t)) (decs:{name:symbol, ty:ty} list) recs env =
+    let val (ps, ps') = List.partition (fn {ty=RecordTy lt, ... } => false
+                                        | {ty=NameTy t, ...} => h=t
+                                        | {ty=ArrayTy t, ...} => false) decs   (* los que necsitan a "h" *)
+        val ttopt = (case List.find (fn x => h=(#name(x))) recs of
+                        SOME {ty=ArrayTy _, name} => NONE
+                        | SOME {ty=RecordTy _, ...} => NONE
+                        | SOME _ => NONE
+                        | NONE => (case tabBusca (h, env) of
+                                    SOME t => SOME t
+                                    | _ => raise Fail (h^" no existe!"))) 
+        val env' = (case ttopt of
+                    SOME tt => List.foldr (fn ({name, ty=NameTy _}, env') => tabInserta (name, tt, env')
+					   (*| ({name, ty=ArrayTy _}, env') => tabInserta (name, TArray (tt, ref ()), env')*)
+                                           | _ => raise Fail "error interno 666 :S") env ps
+                    | _ => env)
     in procesa t ps' recs env'
     end
 
@@ -78,7 +79,7 @@ fun fijaNONE [] env = env
                                                                 | _ => raise Fail "error interno en fijaNONE")
 | fijaNONE ((name, TRecord (lf, u))::t) env = 
     let fun busNONE ((s, TTipo (t, ref NONE), n), l) =
-	            ((s, TTipo (t, ref (SOME ( tabSaca (t, env)))), n)::l)  
+                ((s, TTipo (t, ref (SOME ( tabSaca (t, env)))), n)::l)  
         | busNONE (d, l) = d::l
         val lf' = List.foldr busNONE [] lf
     in fijaNONE t (tabRInserta (name, TRecord (lf', u), env)) end
@@ -88,9 +89,10 @@ fun fijaTipos (batch:{name: symbol, ty: ty} list) env =
     let val pares = genPares batch
         val _ = (print ("pares:");List.map (fn (x,y) => print("("^x^","^y^") ")) pares;print("\n"))
         val recs = List.filter (fn {ty=NameTy _, ...} => false | _ => true) batch
-		val orden = topsort pares 
-		val env' = procesa orden batch recs env
-		val env'' = procRecords recs env'
-		val env''' = fijaNONE (tabAList env'') env''
+        val orden = topsort pares
+(*	val _  = (List.app (fn s => print (s^";")) orden; print "\n") *)
+        val env' = procesa orden batch recs env
+        val env'' = procRecords recs env'
+        val env''' = fijaNONE (tabAList env'') env''
     in env''' end
 end

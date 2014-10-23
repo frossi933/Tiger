@@ -1,0 +1,6 @@
+let
+	type a = int
+	type red = {a : int, b : a}
+in
+	9
+end
