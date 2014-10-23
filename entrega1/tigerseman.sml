@@ -73,7 +73,7 @@ fun eqList _ [] [] = true
 
 fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 	let fun error(s, p) = raise Fail ("Error -- línea "^Int.toString(p)^": "^s^"\n")
-		fun trexp(VarExp v) : expty = trvar(v)
+		fun trexp(VarExp v) = trvar(v)
 		| trexp(UnitExp _) = {exp=(), ty=TUnit}
 		| trexp(NilExp _)= {exp=(), ty=TNil}
 		| trexp(IntExp(i, _)) = {exp=(), ty=TInt}
@@ -317,7 +317,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		                then error("multiples declaraciones de un tipo en un batch", nl) else ()
 				val ltdec = List.map (#1) ts
 				val tenv' = (topsort.fijaTipos ltdec tenv)
-				                    handle Ciclo => error("existe un ciclo en la definicion de tipos", nl)
+				                    (* handle Ciclo => error("existe un ciclo en la definicion de tipos", nl) *)
 		    in (venv, tenv', [])
 		    end                                             (* COMPLETADO *)
 		    

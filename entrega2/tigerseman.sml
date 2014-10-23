@@ -175,8 +175,8 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		| trexp(AssignExp({var=SimpleVar s, exp}, nl)) =
 		    let 
 		        val aty = (case tabBusca(s, venv) of
-		                        SOME (Var {ty=TROInt}) => error("Entero de solo lectura", nl)
-		                        | SOME (Var {ty})      => if tiposIguales (#ty(trexp exp)) ty then TUnit
+		                        SOME (Var {ty=TROInt, ...}) => error("Entero de solo lectura", nl)
+		                        | SOME (Var {ty, ...})      => if tiposIguales (#ty(trexp exp)) ty then TUnit
 		                                                else error("Error de tipo de la expresion", nl)
 		                        | SOME (Func _)        => error("Asignacion incorrecta", nl)
 		                        | NONE                 => error("No existe variable", nl))
@@ -225,7 +225,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		        val _ = if tyHi <> TInt andalso tyHi <> TROInt 
 		                then error("Error en rango superior de iteracion", nl) else ()
 		        val venv' = fromTab venv
-		        val _ = tabInserta(var, Var {ty=TROInt}, venv')
+		        val _ = tabInserta(var, Var {ty=TROInt, access=allocLocal (topLevel()) false, level=getActualLev() }, venv')
 		        val {ty=tyBody, ...} = transExp (venv', tenv) body
 		    in 
 		        if tyBody=TUnit then {exp=nilExp(), ty=TUnit}
@@ -262,7 +262,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 			end                                    (*COMPLETADO*) 
 		and trvar(SimpleVar s, nl) =
 		    (case tabBusca (s, venv) of
-		        SOME (Var {ty}) => {exp=nilExp(), ty=ty}
+		        SOME (Var {ty, ...}) => {exp=nilExp(), ty=ty}
 		        | SOME _        => error(s^" no es una variable", nl)
 		        | _             => error("No existe "^s, nl))        (*COMPLETADO*)
 		| trvar(FieldVar(v, s), nl) =
