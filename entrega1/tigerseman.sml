@@ -97,8 +97,9 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 			let
 				val {exp=_, ty=tyl} = trexp left
 				val {exp=_, ty=tyr} = trexp right
+				val _ = (print (printTipo tyr); print (printTipo tyl))
 			in
-				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt}
+				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt} (* porq no permito comparar dos tnil??? *)
 					else error("Tipos no comparables", nl)
 			end
 		| trexp(OpExp({left, oper=NeqOp, right}, nl)) = 
@@ -275,7 +276,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    let 
 		        val sTy = (case tabBusca (s, tenv) of
 		                    SOME t => t
-		                    | NONE => error("No existe el tipo", nl))
+		                    | NONE => error("No existe el tipo1", nl))
 		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
 		    in 
 		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
@@ -294,7 +295,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		                                            SOME typ => (name, Func {level=mainLevel, label=tigertemp.newlabel(), 
 		                                                              formals = getFormals(params, nl), extern=false, 
 		                                                              result=typ})
-		                                            | NONE => error("No existe el tipo "^t, nl))
+		                                            | NONE => error("No existe el tipo2 "^t, nl))
 		        val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
 		        fun trbody (({name, params, result, body}, nl), env) = 
 		            let 
@@ -306,7 +307,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		                            | SOME st => (case tabBusca(st, tenv) of
 		                                            SOME t => if not(tiposIguales bodyTy t) then error("Error de tipo de retorno de la funcion "^name, nl)
 		                                                                                    else ()
-		                                            | NONE => error("No existe el tipo "^st, nl)))
+		                                            | NONE => error("No existe el tipo3 "^st, nl)))
 		            in () end
 		        val _ = List.map (fn f => trbody(f, venv')) fs
 		    in 
@@ -327,7 +328,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                             (* COMPLETADO *)
 		    
 	    and trty (NameTy s, nl) = (case tabBusca(s, tenv) of
-		                                        NONE => error("No existe el tipo "^s, nl)
+		                                        NONE => error("No existe el tipo4 "^s, nl)
 		                                        | SOME ty => ty)
 		|   trty (RecordTy fs, nl)  = let val l = List.map (fn {name, escape, typ} => (name, trty(typ, nl), 0)) fs
 		                              in TRecord (l, ref ()) end
