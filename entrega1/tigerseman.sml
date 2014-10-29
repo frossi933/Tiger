@@ -9,7 +9,11 @@ type expty = {exp: unit, ty: Tipo}
 type venv = (string, EnvEntry) tigertab.Tabla
 type tenv = (string, Tipo) tigertab.Tabla
 
+
+
 fun showTenv env = List.foldl (fn ((n,t),res) => n^"->"^printTipo t^"\n"^res) "" (tabAList env)
+
+
 val tab_tipos : (string, Tipo) Tabla = tabInserList(
 	tabNueva(),
 	[("int", TInt), ("string", TString)])
@@ -117,14 +121,14 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 			in
 				if tiposIguales tyl tyr then
 					case oper of
-						PlusOp => if tipoReal tyl=TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| MinusOp => if tipoReal tyl=TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| TimesOp => if tipoReal tyl=TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| DivideOp => if tipoReal tyl=TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| LtOp => if tipoReal tyl=TInt orelse tipoReal tyl=TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| LeOp => if tipoReal tyl=TInt orelse tipoReal tyl=TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| GtOp => if tipoReal tyl=TInt orelse tipoReal tyl=TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
-						| GeOp => if tipoReal tyl=TInt orelse tipoReal tyl=TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						PlusOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| MinusOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| TimesOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| DivideOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| LtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| LeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| GtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| GeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
 						| _ => raise Fail "No debería pasar! (3)"
 				else error("Error de tipos", nl)
 			end
@@ -209,8 +213,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		        val tyHi = #ty (trexp hi)
 		        val _ = if tyHi <> TInt andalso tyHi <> TROInt 
 		                then error("Error en rango superior de iteracion", nl) else ()
-		        val venv' = fromTab venv
-		        val _ = tabInserta(var, Var {ty=TROInt}, venv')
+		        val venv' = tabRInserta(var, Var {ty=TROInt}, venv)
 		        val {ty=tyBody, ...} = transExp (venv', tenv) body
 		    in 
 		        if tyBody=TUnit then {exp=(), ty=TUnit}
@@ -218,8 +221,10 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                                                (* COMPLETADO *)
 		| trexp(LetExp({decs, body}, _)) =
 			let
+			  val _ = (print "ENTORNOOOOOOO ANTS #################\n"; (print o showTenv) tenv;print "FIN #################\n")
 				val (venv', tenv', _) = List.foldl (fn (d, (v, t, _)) => trdec(v, t) d) (venv, tenv, []) decs
-				val {ty=tybody, ...} = transExp(venv', tenv') body
+			  val _ = (print "ENTORNOOOOOOO DSP #################\n"; (print o showTenv) tenv';print "FIN #################\n")
+			  val {ty=tybody, ...} = transExp(venv', tenv') body
 			in 
 				{exp=(), ty=tybody}
 			end
@@ -279,11 +284,12 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		                    | NONE => error("No existe el tipo1", nl))
 		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
 		    in 
-		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
+		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=sTy}, venv), tenv, [])
 		                                  else error("No coinciden los tipos", nl)
 		    end                                                             (*COMPLETADO*)
 		| trdec (venv,tenv) (FunctionDec fs) = 
 		    let
+		        val _ = print "function"
 		        val pnl = #2(List.hd fs)
 		        val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
 		                then error("multiples declaraciones de una funcion en un batch", pnl) else ()
@@ -327,9 +333,11 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    in (venv, tenv', [])
 		    end                                             (* COMPLETADO *)
 		    
-	    and trty (NameTy s, nl) = (case tabBusca(s, tenv) of
+	    and trty (NameTy s, nl) = let val _ = (print "ENTORNOOOOOOO ANTES ###\n"; (print o showTenv) tenv;print "FIN ###\n")
+	                              in (case tabBusca(s, tenv) of
 		                                        NONE => error("No existe el tipo4 "^s, nl)
 		                                        | SOME ty => ty)
+		                            end
 		|   trty (RecordTy fs, nl)  = let val l = List.map (fn {name, escape, typ} => (name, trty(typ, nl), 0)) fs
 		                              in TRecord (l, ref ()) end
 		|   trty (ArrayTy s, nl)    = (case tabBusca(s, tenv) of

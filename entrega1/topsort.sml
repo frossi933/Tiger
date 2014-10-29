@@ -31,24 +31,23 @@ fun genPares (lt:{name: symbol, ty: ty} list) =
   end
 
 
-fun procesa [] _ _ env = env
+fun procesa [x] _ _ env = env
 | procesa (sorted as (h::t)) (decs:{name:symbol, ty:ty} list) recs env =
     let val (ps, ps') = List.partition (fn {ty=RecordTy lt, ... } => false
                                         | {ty=NameTy t, ...} => h=t
-                                        | {ty=ArrayTy t, ...} => false) decs   (* los que necsitan a "h" *)
-        val ttopt = (case List.find (fn x => h=(#name(x))) recs of
-                        SOME {ty=ArrayTy _, name} => NONE
-                        | SOME {ty=RecordTy _, ...} => NONE
-                        | SOME _ => NONE
+                                        | {ty=ArrayTy t, ...} => h=t) decs   (* los que necsitan a "h" *)
+        val ttopt = (case List.find (fn {name, ty} => h = name) recs of
+                        SOME _ => TTipo (h, ref NONE)
                         | NONE => (case tabBusca (h, env) of
                                     SOME t => SOME t
                                     | _ => raise Fail (h^" no existe!"))) 
-        val env' = (case ttopt of
-                    SOME tt => List.foldr (fn ({name, ty=NameTy _}, env') => tabInserta (name, tt, env')
-					   (*| ({name, ty=ArrayTy _}, env') => tabInserta (name, TArray (tt, ref ()), env')*)
-                                           | _ => raise Fail "error interno 666 :S") env ps
+        fun insert (t', {name, ty=NameTy _}, e) = tabInserta (name, t', e)
+        | insert (t', {name, ty=ArrayTy _}, e) = tabInserta (name, TArray (t', ref ()), e)
+        | insert (t', {name, ty=RecordTy _}, e) = raise Fail "no deberia haber un record aca"
+        val env'' = (case ttopt of
+                    SOME tt => List.foldr (fn (r, e) => insert(tt,r,e)) env ps
                     | _ => env)
-    in procesa t ps' recs env'
+    in procesa t ps' recs env''
     end
 
 fun procRecords recs env =
@@ -88,9 +87,9 @@ fun fijaNONE [] env = env
 fun fijaTipos (batch:{name: symbol, ty: ty} list) env = 
     let val pares = genPares batch
         val _ = (print ("pares:");List.map (fn (x,y) => print("("^x^","^y^") ")) pares;print("\n"))
-        val recs = List.filter (fn {ty=NameTy _, ...} => false | _ => true) batch
+        val recs = List.filter (fn {ty=RecordTy _, ...} => true | _ => false) batch
         val orden = topsort pares
-(*	val _  = (List.app (fn s => print (s^";")) orden; print "\n") *)
+        val _  = (List.app (fn s => print (s^";")) orden; print "\n")
         val env' = procesa orden batch recs env
         val env'' = procRecords recs env'
         val env''' = fijaNONE (tabAList env'') env''
