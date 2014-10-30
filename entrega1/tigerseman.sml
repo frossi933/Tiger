@@ -221,7 +221,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		| trexp(LetExp({decs, body}, _)) =
 			let
 (*			  val _ = (print "ENTORNOOOOOOO ANTS #################\n"; (print o showTenv) tenv;print "FIN #################\n") *)
-				val (venv', tenv', _) = List.foldl (fn (d, (v, t, _)) => trdec(v, t) d) (venv, tenv, []) decs
+				val (venv', tenv', _) = List.foldl (fn (d, (v, t, _)) => (print "tenv\n";print (showTenv t);print "finnn\n";trdec(v, t) d) ) (venv, tenv, []) decs
 (*			  val _ = (print "ENTORNOOOOOOO DSP #################\n"; (print o showTenv) tenv';print "FIN #################\n") *)
 			  val {ty=tybody, ...} = transExp(venv', tenv') body
 			in 
@@ -289,10 +289,11 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		| trdec (venv,tenv) (FunctionDec fs) = 
 		    let
 (*		        val _ = print "function" *)
+				val _ = (print "entorno en la funcion\n"; (print o showTenv) tenv;print "FIN\n")
 		        val pnl = #2(List.hd fs)
 		        val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
 		                then error("multiples declaraciones de una funcion en un batch", pnl) else ()
-		        fun getFormals (ps, nl) = List.map (fn {typ, ... } => trty (typ, nl)) ps
+		        fun getFormals (ps, nl) = List.map (fn {typ, ... } => trty (typ, tenv, nl)) ps
 		        fun genFuncEntry ({name, params, result=NONE, body}, nl) = (name, Func {level=mainLevel, label=tigertemp.newlabel(), 
 		                                                                         formals = getFormals(params, nl), 
 		                                                                         extern=false, result=TUnit})
@@ -304,7 +305,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		        val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
 		        fun trbody (({name, params, result, body}, nl), env) = 
 		            let 
-		                val env'' : venv = List.foldl (fn ({typ, name, ...}, e) => tabInserta(name, Var {ty=trty(typ, nl)}, e)) env params
+		                val env'' : venv = List.foldl (fn ({typ, name, ...}, e) => tabInserta(name, Var {ty=trty(typ, tenv, nl)}, e)) env params
 		                val {ty=bodyTy, ...} = transExp(env'', tenv) body
 		                val _ = (case result of
 		                            NONE => if not(tiposIguales bodyTy TUnit) then error("La funcion "^name^" no debe devolver nada", nl) 
@@ -325,21 +326,19 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 				val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) ts))) <> List.length ts) 
 		                then error("multiples declaraciones de un tipo en un batch", nl) else ()
 				val ltdec = List.map (#1) ts
-				val _ = (print "ENTORNOOOOOOO ANTES #################\n"; (print o showTenv) tenv;print "FIN #################\n")
+				(*val _ = (print "ENTORNOOOOOOO ANTES #################\n"; (print o showTenv) tenv;print "FIN #################\n")*)
 				val tenv' = (topsort.fijaTipos ltdec tenv)
-				val _ = (print "ENTORNOOOOOOOO DESPUEST #################\n"; (print o showTenv) tenv';print "FIN #################\n")
+				(*val _ = (print "ENTORNOOOOOOOO DESPUEST #################\n"; (print o showTenv) tenv';print "FIN #################\n")*)
 				                    (* handle Ciclo => error("existe un ciclo en la definicion de tipos", nl) *)
 		    in (venv, tenv', [])
 		    end                                             (* COMPLETADO *)
 		    
-	    and trty (NameTy s, nl) = let val _ = (print "ENTORNOOOOOOO ANTES ###\n"; (print o showTenv) tenv;print "FIN ###\n")
-	                              in (case tabBusca(s, tenv) of
+	    and trty (NameTy s, tenv', nl) = (case tabBusca(s, tenv') of
 		                                        NONE => error("No existe el tipo4 "^s, nl)
 		                                        | SOME ty => ty)
-		                            end
-		|   trty (RecordTy fs, nl)  = let val l = List.map (fn {name, escape, typ} => (name, trty(typ, nl), 0)) fs
+		|   trty (RecordTy fs, tenv', nl)  = let val l = List.map (fn {name, escape, typ} => (name, trty(typ, tenv', nl), 0)) fs
 		                              in TRecord (l, ref ()) end
-		|   trty (ArrayTy s, nl)    = (case tabBusca(s, tenv) of
+		|   trty (ArrayTy s, tenv', nl)    = (case tabBusca(s, tenv') of
 		                                        SOME (TArray (t, u)) => TArray (t, u)
 		                                        | SOME _ => error(s^" no es un arreglo", nl)
 		                                        | NONE => error("No existe el tipo "^s, nl))
@@ -350,7 +349,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 fun transProg ex =
 	let	val main =
 				LetExp({decs=[FunctionDec[({name="_tigermain", params=[],
-								result=SOME "int", body=SeqExp ([ex, UnitExp 0],~1)}, 0)]],
+								result=NONE, body=SeqExp ([ex, UnitExp 0],~1)}, 0)]],
 						body=UnitExp 0}, 0)
 		val _ = transExp(tab_vars, tab_tipos) main
 	in	print "bien!\n" end
