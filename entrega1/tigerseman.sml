@@ -101,9 +101,8 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 			let
 				val {exp=_, ty=tyl} = trexp left
 				val {exp=_, ty=tyr} = trexp right
-				val _ = (print (printTipo tyr); print (printTipo tyl))
 			in
-				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt} (* porq no permito comparar dos tnil??? *)
+				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt}
 					else error("Tipos no comparables", nl)
 			end
 		| trexp(OpExp({left, oper=NeqOp, right}, nl)) = 
@@ -221,9 +220,9 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                                                (* COMPLETADO *)
 		| trexp(LetExp({decs, body}, _)) =
 			let
-			  val _ = (print "ENTORNOOOOOOO ANTS #################\n"; (print o showTenv) tenv;print "FIN #################\n")
+(*			  val _ = (print "ENTORNOOOOOOO ANTS #################\n"; (print o showTenv) tenv;print "FIN #################\n") *)
 				val (venv', tenv', _) = List.foldl (fn (d, (v, t, _)) => trdec(v, t) d) (venv, tenv, []) decs
-			  val _ = (print "ENTORNOOOOOOO DSP #################\n"; (print o showTenv) tenv';print "FIN #################\n")
+(*			  val _ = (print "ENTORNOOOOOOO DSP #################\n"; (print o showTenv) tenv';print "FIN #################\n") *)
 			  val {ty=tybody, ...} = transExp(venv', tenv') body
 			in 
 				{exp=(), ty=tybody}
@@ -240,7 +239,6 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 					    | SOME _ => error(typ^" no es un arreglo", nl)
 			                    | NONE => error("No existe el tipo "^typ, nl))
 			    val iniTy = #ty (trexp init)
-		   val _ = (print (printTipo typTy);print "\n"; print (printTipo iniTy))
 			    val _ = if not (tiposIguales iniTy typTy) 
 			            then error("No coincide el tipo del inicializador", nl) else ()
 			in
@@ -272,9 +270,10 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                               (*COMPLETADO*)
 		and trdec (venv, tenv) (VarDec ({name,escape,typ=NONE,init},nl)) = 
 		    let 
+		        val _ = (print ("tenv para "^name^"\n"); print (showTenv tenv); print "fin\n")
 		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
 		    in 
-		        if tiposIguales iniTy TNil then error("no se puede determinar el tipo de "^name, nl)
+		        if iniTy=TNil then error("no se puede determinar el tipo de "^name, nl)
 		                                   else (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
 		    end                                                          (*COMPLETADO*)
 		| trdec (venv,tenv) (VarDec ({name,escape,typ=SOME s,init},nl)) =
@@ -289,7 +288,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 		    end                                                             (*COMPLETADO*)
 		| trdec (venv,tenv) (FunctionDec fs) = 
 		    let
-		        val _ = print "function"
+(*		        val _ = print "function" *)
 		        val pnl = #2(List.hd fs)
 		        val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
 		                then error("multiples declaraciones de una funcion en un batch", pnl) else ()
@@ -351,7 +350,7 @@ fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
 fun transProg ex =
 	let	val main =
 				LetExp({decs=[FunctionDec[({name="_tigermain", params=[],
-								result=NONE, body=SeqExp ([ex, UnitExp 0],~1)}, 0)]],
+								result=SOME "int", body=SeqExp ([ex, UnitExp 0],~1)}, 0)]],
 						body=UnitExp 0}, 0)
 		val _ = transExp(tab_vars, tab_tipos) main
 	in	print "bien!\n" end

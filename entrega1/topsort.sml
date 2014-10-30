@@ -31,13 +31,13 @@ fun genPares (lt:{name: symbol, ty: ty} list) =
   end
 
 
-fun procesa [x] _ _ env = env
+fun procesa [] _ _ env = env
 | procesa (sorted as (h::t)) (decs:{name:symbol, ty:ty} list) recs env =
     let val (ps, ps') = List.partition (fn {ty=RecordTy lt, ... } => false
                                         | {ty=NameTy t, ...} => h=t
                                         | {ty=ArrayTy t, ...} => h=t) decs   (* los que necsitan a "h" *)
         val ttopt = (case List.find (fn {name, ty} => h = name) recs of
-                        SOME _ => TTipo (h, ref NONE)
+                        SOME _ => SOME (TTipo (h, ref NONE))
                         | NONE => (case tabBusca (h, env) of
                                     SOME t => SOME t
                                     | _ => raise Fail (h^" no existe!"))) 
@@ -65,31 +65,33 @@ fun procRecords recs env =
             let val lf' = List.foldl (fn ({name, typ=NameTy t, ...},l) => (name, buscaEnv env' t)::l
                                       | ({name, typ=ArrayTy t, ...},l) => (name, TArray (buscaEnv env' t, ref ()))::l
                                       | (_, l) => l) [] lf
-                val (_, lf'') = List.foldl (fn ((x,y), (n,l)) => (n+1, (x, y, n)::l)) (0, []) lf'
+                val (_, lf'') = List.foldl (fn ((namef,typef), (n,l)) => (n+1, (namef, typef, n)::l)) (0, []) lf'
                 val env'' = tabInserta(name,TRecord (lf'', ref ()), env')
             in precs t env'' end
-        | precs ({name, ty=ArrayTy ty}::t) env' = precs t (tabInserta (name, TArray (buscaEnv env' ty, ref ()), env'))
         | precs _ _ = raise Fail "error interno en precs"
     in precs recs (fromTab env) end
 
 fun fijaNONE [] env = env
 | fijaNONE ((name, TArray (TTipo (s, ref NONE), u))::t) env = (case tabBusca (s, env) of
-                                                                SOME (r as (TRecord _)) => fijaNONE t (tabRInserta (name, TArray (TTipo (s, ref (SOME r)), u), env))
-                                                                | _ => raise Fail "error interno en fijaNONE")
+                                                              SOME (r as (TRecord _)) => fijaNONE t (tabRInserta (name, TArray (r, u), env))
+                                                              | _ => raise Fail "error interno en fijaNONE")
 | fijaNONE ((name, TRecord (lf, u))::t) env = 
     let fun busNONE ((s, TTipo (t, ref NONE), n), l) =
                 ((s, TTipo (t, ref (SOME ( tabSaca (t, env)))), n)::l)  
         | busNONE (d, l) = d::l
         val lf' = List.foldr busNONE [] lf
     in fijaNONE t (tabRInserta (name, TRecord (lf', u), env)) end
+| fijaNONE ((name, TTipo (tt, ref NONE))::t) env = (case tabBusca (tt, env) of
+                                            SOME tt' => tabRInserta (name, tt', env)
+                                            | NONE => raise Fail "error2 interno en fijaNONE")
 | fijaNONE (_::t) env = fijaNONE t env
 
 fun fijaTipos (batch:{name: symbol, ty: ty} list) env = 
     let val pares = genPares batch
-        val _ = (print ("pares:");List.map (fn (x,y) => print("("^x^","^y^") ")) pares;print("\n"))
+(*        val _ = (print ("pares:");List.map (fn (x,y) => print("("^x^","^y^") ")) pares;print("\n"))   *)
         val recs = List.filter (fn {ty=RecordTy _, ...} => true | _ => false) batch
         val orden = topsort pares
-        val _  = (List.app (fn s => print (s^";")) orden; print "\n")
+(*        val _  = (List.app (fn s => print (s^";")) orden; print "\n")    *)
         val env' = procesa orden batch recs env
         val env'' = procRecords recs env'
         val env''' = fijaNONE (tabAList env'') env''
