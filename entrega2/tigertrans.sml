@@ -165,8 +165,18 @@ in
 			BINOP(MUL, TEMP ri, CONST tigerframe.wSz)))))
 end
 
-fun recordExp l =
-	Ex (CONST 0) (*COMPLETAR*)
+fun recordExp l = (* usaremos una funcion de runtime *)
+	let val ret = newtemp()
+	    fun genTemps n = List.tabulate(n, newtemp())
+	    val regs=genTemps(length l)
+	    fun aux((e,s),t)=(MOVE (TEMP t, unEx e), s, TEMP t)
+	    val lexps=List.map aux (ListPair.zip (l, args))
+	    val lexps'=List.map #1 lexps
+	    val l'=List.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
+	in
+	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))],MOVE(TEMP ret,TEMP rv)], 
+	            TEMP ret))
+					(*COMPLETADO''*)
 
 fun arrayExp{size, init} =
 let
@@ -221,8 +231,8 @@ end
 
 fun forExp {lo, hi, var, body} = let val var'= unEx var
 				     val (l1, l2, lsal) = (newlabel(), newlabel(), topSalida())
-				 in Nx (seq [case hi of
-						Ex (CONST n) => if ((valOf Int.maxInt)-1)<n then
+				 in Nx (seq (case hi of
+					Ex (CONST n) => if (valOf Int.maxInt>n) then
 									(* haremos un while *)
 									[MOVE (var', unEx lo),
 									JUMP (NAME l2, [l2]),
@@ -232,28 +242,29 @@ fun forExp {lo, hi, var, body} = let val var'= unEx var
 									LABEL l2,
 									CJUMP (GT, var', CONST n, lsal, l1),
 									LABEL lsal]
-								else  (* VER *)
+								else  (* creo que yaesta... *)
 									[MOVE (var', unEx lo),
 									LABEL l2,
 									CJUMP (EQ, var', CONST n, lsal, l1),
+									LABEL l1,
 									unNx body,
-									LABEL l1, 
 									MOVE (var', BINOP(PLUS, var', CONST 1)),
 									JUMP (NAME l2, [l2]),
 									LABEL lsal]
 						| _ =>	let val t = newtemp() 		(* entonces hi no es una constante *)
 							in 	[MOVE (var', unEx lo),
 								MOVE(TEMP t, unEx hi),
-								CJUMP(LE, var', TEMP t, l2, lsal),
+								LABEL l1,
+								CJUMP(LT, var', TEMP t, l2, l3),
 								LABEL l2,
 								unNx body,
-								CJUMP(EQ, var', TEMP t, lsal, l1),
-								LABEL l1, 
 								MOVE (var', BINOP(PLUS, var', CONST 1)),
-								JUMP (NAME l2, [l2]),
+								JUMP (NAME l1, [l1]),
+								LABEL l3,
+								unNx body,
 								LABEL lsal]
-							end
-	(*COMPLETAR*)
+							end))
+	(*COMPLETADO'*)
 
 fun ifThenExp{test, then'} =
 	Ex (CONST 0) (*COMPLETAR*)
