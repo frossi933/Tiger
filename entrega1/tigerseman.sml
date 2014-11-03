@@ -76,7 +76,7 @@ fun eqList _ [] [] = true
 | eqList eq (x::xs) (y::ys) = if eq x y then eqList eq xs ys 
                                         else false 
 
-fun transExp ((venv, tenv) : venv * tenv ): tigerabs.exp -> expty =
+fun transExp (venv, tenv) =
 	let fun error(s, p) = raise Fail ("Error -- línea "^Int.toString(p)^": "^s^"\n")
 		fun trexp(VarExp v) = trvar(v)
 		| trexp(UnitExp _) = {exp=(), ty=TUnit}
