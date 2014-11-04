@@ -1,0 +1,5 @@
+let type R = {a:int, b:string}
+    var r:R:=R {b="hola", a=0}
+in
+	r;0
+end

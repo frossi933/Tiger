@@ -151,7 +151,7 @@ fun transExp (venv, tenv) =
 						if s<>sy then error("Error de campo", nl)
 						else if tiposIguales ty t then verificar cs ds
 							 else error("Error de tipo del campo "^s, nl)
-				val _ = verificar cs tfields
+				val _ = verificar cs tfields (*deberia estar ordenados de algnamanera para ir comparandolos*)
 			in
 				{exp=(), ty=tyr}
 			end

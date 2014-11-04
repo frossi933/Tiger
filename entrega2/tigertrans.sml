@@ -19,13 +19,16 @@ fun getActualLev() = !actualLevel
 
 val outermost: level = {parent=NONE,
 	frame=newFrame{name="_tigermain", formals=[]}, level=getActualLev()}
+
 fun newLevel{parent={parent, frame, level}, name, formals} =
-	{
-	parent=SOME frame,
+	{parent=SOME frame,
 	frame=newFrame{name=name, formals=formals},
 	level=level+1}
+
 fun allocArg{parent, frame, level} b = tigerframe.allocArg frame b
+
 fun allocLocal{parent, frame, level} b = tigerframe.allocLocal frame b
+
 fun formals{parent, frame, level} = tigerframe.formals frame
 
 datatype exp =
@@ -85,6 +88,7 @@ fun Ir(e) =
 		fun aux3 [] = ""
 		| aux3(h::t) = (aux2 h)^(aux3 t)
 	in	aux3 e end
+
 fun nombreFrame frame = print(".globl " ^ tigerframe.name frame ^ "\n")
 
 (* While y for necesitan la u'ltima etiqueta para un break *)
@@ -165,18 +169,19 @@ in
 			BINOP(MUL, TEMP ri, CONST tigerframe.wSz)))))
 end
 
-fun recordExp l = (* usaremos una funcion de runtime *)
+fun recordExp (l:(tigerabs.exp * int) list) = (* usaremos una funcion de runtime *)
 	let val ret = newtemp()
-	fun genTemps n = List.tabulate(n, (fn _ => newtemp()))
-	    val regs=genTemps(length l)
+	    fun genTemps n = List.tabulate(n, (fn _ => newtemp()))
+	    val regs = genTemps(length l)
 	    fun aux((e,s),t)=(MOVE (TEMP t, unEx e), s, TEMP t)
-	    val lexps=List.map aux (ListPair.zip (l, args))
+	    val lexps=List.map aux (ListPair.zip (l, regs))
 	    val lexps'=List.map #1 lexps
 	    val l'=Listsort.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
 	in
-	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))],MOVE(TEMP ret,TEMP rv)], 
-	            TEMP ret))
-					(*COMPLETADO''*)
+	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))]
+		    ,MOVE(TEMP ret,TEMP rv)], 
+	       TEMP ret))
+					(*COMPLETADO*)
 
 fun arrayExp{size, init} =
 let
@@ -264,7 +269,7 @@ fun forExp {lo, hi, var, body} = let val var'= unEx var
 								unNx body,
 								LABEL lsal]
 							end))
-	(*COMPLETADO'*)
+	(*COMPLETADO*)
 
 fun ifThenExp{test, then'} =
 	Ex (CONST 0) (*COMPLETAR*)
