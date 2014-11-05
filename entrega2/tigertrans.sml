@@ -191,8 +191,36 @@ in
 	Ex (externalCall("allocArray", [s, i]))
 end
 
-fun callExp (name,external,isproc,lev:level,ls) = 
-	Ex (CONST 0) (*COMPLETAR*)
+(*fun callExp (name,external,isproc,lev:level,ls) = *)
+fun callExp (f, proc, extern,{level, ...},la) =
+	let fun menAmay 0 = TEMP fp
+	    | menAmay n = MEM (BINOP(PLUS, menAmay (n-1), CONST fpPrevLev))
+	    val fplev=if level=getActualLev() then
+	          MEM(BINOP(PLUS, TEMP fp, CONST fpPrevLev))
+	              else if level <getActualLev() then
+	                        menAmay(getActualLev() - level + 1)
+	                   else TEMP fp
+	    (*usaremos convencion de llamadas e C junto con la exigencia de Tiger, 
+	      efectos laterales de izq a der, args en stack de der a izq *) 
+	    fun preparaArgs [] (rt, re) = (rt, re)
+	    |   preparaArgs (h::t) (rt, re) = case h of
+	                          Ex (CONST s) => preparaArgs t ((CONST s)::rt, re)
+	                          | Ex (NAME s) => preparaArgs t ((NAME s)::rt, re)
+	                          | Ex (TEMP s) => preparaArgs t ((TEMP s)::rt, re)
+	                          | _ => let val t' = newtemp()
+	                                 in preparaArgs t (t'::rt, (MOVE (TEMP t', unEx h)::re))
+	                                 end
+	    val (ta, la')=preparaArgs (rev la) ([],[])
+	    val ta' = if extern then ta else fpLev::ta
+	in
+	    if proc then Nx(seq[ta'@[CALL(NAME f, ta')]])
+	    else let val tmp=newtemp()
+	         in Ex (ESEQ (seq[la'@[CALL(NAME f, ta')]),
+	                      MOVE (TEMP tmp, TEMP rv)],
+	                TEMP tmp)
+	         end
+	end
+	      (*COMPLETADO'''*)
 
 fun letExp ([], body) = Ex (unEx body)
  |  letExp (inits, body) = Ex (ESEQ(seq inits,unEx body))
@@ -271,14 +299,47 @@ fun forExp {lo, hi, var, body} = let val var'= unEx var
 							end))
 	(*COMPLETADO*)
 
-fun ifThenExp{test, then'} =
-	Ex (CONST 0) (*COMPLETAR*)
+fun ifThenExp{test, then'} = let tecx = unCx test
+                                 thnx = unNx then'
+                                 (t,f) = (newlabel(),newlabel())
+                             in
+                                 Nx (seq[tecx(t,f),
+                                         LABEL t,
+                                         thnx,
+                                         LABEL f])
+                             end  
+  (*COMPLETADO'*)
 
-fun ifThenElseExp {test,then',else'} =
-	Ex (CONST 0) (*COMPLETAR*)
+fun ifThenElseExp {test,then',else'} = let tecx = unCx test
+                                           thex = unEx then'
+                                           elex = unEx else'
+                                           (t,f,sal) = (newlabel(),newlabel(),newlabel())
+                                           aux = newtemp()
+                                       in
+                                           Ex (ESEQ (seq[tecx(t,f),
+                                                         LABEL t,
+                                                         MOVE(TEMP aux, thex),
+                                                         JUMP (NAME sal, [sal]),
+                                                         LABEL f,
+                                                         MOVE(TEMP aux, elex),
+                                                         LABEL sal], TEMP aux))
+                                       end
+    (*COMPLETADO' *)
 
-fun ifThenElseExpUnit {test,then',else'} =
-	Ex (CONST 0) (*COMPLETAR*)
+fun ifThenElseExpUnit {test,then',else'} = let tecx = unCx test
+                                               thnx = unNx then'
+                                               elnx = unNx else'
+                                               (t,f,sal) = (newlabel(),newlabel(), newlabel())
+                                           in
+                                               Nx (seq[tecx(t,f),
+                                                       LABEL t,
+                                                       thnx,
+                                                       JUMP (NAME sal,[sal]),
+                                                       LABEL f,
+                                                       elnx,
+                                                       LABEL sal])
+                                           end
+     (*COMPLETADO'*)
 
 fun assignExp{var, exp} =
 let
@@ -289,13 +350,45 @@ in
 end
 
 fun binOpIntExp {left, oper, right} = 
-	Ex (CONST 0) (*COMPLETAR*)
+	let val l = unEx left
+	    val r = unEx right
+	in case oper of
+	      PlusOp => Ex(BINOP(PLUS,l,r))
+	      | MinusOp => Ex(BINOP(MINUS,l,r))
+	      | TimesOp => Ex(BINOP(MUL,l,r))
+	      | DivideOp => Ex(BINOP(DIV,l,r))
+	      | _ => raise Fail "Error interno: Operacion binaria incorrecta\n"
+	end
+	(* supongo que hay q separarlo... *)
+	(*COMPLETADO'*)
 
-fun binOpIntRelExp {left,oper,right} =
-	Ex (CONST 0) (*COMPLETAR*)
+fun binOpIntRelExp {left,oper,right} = 
+	let val l = unEx left
+	    val r = unEx right
+	    fun subst oper = fn (t,f) => CJUMP (oper, l, r, t, f)
+	in case oper of
+	      | EpOp => Cx(subst EQ)
+	      | NeqOp => Cx(subst NE) 
+	      | LtOp => Cx(subst LT)
+	      | GtOp => Cx(subst GT)
+	      | GeOp => Cx(subst GE)
+	      | _ => raise Fail "Error interno: Operacion no relacional\n"
+	end    
+	      (*COMPLETADO''*)
 
 fun binOpStrExp {left,oper,right} =
-	Ex (CONST 0) (*COMPLETAR*)
+	let val sl = unEx left
+	    val sr = unEx right
+	    fun subst oper = fn (t,f) => CJUMP(oper, ESEQ(externalCall("_stringCompare",[sl, sr]), TEMP rv), CONST 0, t, f)
+	in  case oper of
+	        EqOp => Cx(subst EQ)
+	        | NeqOp => Cx(subst NE)
+	        | LtOp => Cx(subst LT)
+	        | GtOp => Cx(subst GT)
+	        | GeOp => Cx(subst GE)
+	        | _ => raise Fail "Error interno: Operacion no relacional para strings\n"	    
+	end
+	 (*COMPLETADO '''*)
 
 
 end

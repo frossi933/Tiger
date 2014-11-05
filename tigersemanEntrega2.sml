@@ -3,7 +3,6 @@ struct
 
 open tigerabs
 open tigersres
-open tigertrans
 
 type expty = {exp: unit, ty: Tipo}
 
@@ -19,32 +18,27 @@ val tab_tipos : (string, Tipo) Tabla = tabInserList(
 	tabNueva(),
 	[("int", TInt), ("string", TString)])
 
-val levelPila: tigertrans.level tigerpila.Pila = tigerpila.nuevaPila1(tigertrans.outermost) 
-fun pushLevel l = tigerpila.pushPila levelPila l
-fun popLevel() = tigerpila.popPila levelPila 
-fun topLevel() = tigerpila.topPila levelPila
-
 val tab_vars : (string, EnvEntry) Tabla = tabInserList(
 	tabNueva(),
-	[("print", Func{level=topLevel(), label="print",
+	[("print", Func{level=mainLevel, label="print",
 		formals=[TString], result=TUnit, extern=true}),
-	("flush", Func{level=topLevel(), label="flush",
+	("flush", Func{level=mainLevel, label="flush",
 		formals=[], result=TUnit, extern=true}),
-	("getchar", Func{level=topLevel(), label="getstr",
+	("getchar", Func{level=mainLevel, label="getstr",
 		formals=[], result=TString, extern=true}),
-	("ord", Func{level=topLevel(), label="ord",
+	("ord", Func{level=mainLevel, label="ord",
 		formals=[TString], result=TInt, extern=true}),
-	("chr", Func{level=topLevel(), label="chr",
+	("chr", Func{level=mainLevel, label="chr",
 		formals=[TInt], result=TString, extern=true}),
-	("size", Func{level=topLevel(), label="size",
+	("size", Func{level=mainLevel, label="size",
 		formals=[TString], result=TInt, extern=true}),
-	("substring", Func{level=topLevel(), label="substring",
+	("substring", Func{level=mainLevel, label="substring",
 		formals=[TString, TInt, TInt], result=TString, extern=true}),
-	("concat", Func{level=topLevel(), label="concat",
+	("concat", Func{level=mainLevel, label="concat",
 		formals=[TString, TString], result=TString, extern=true}),
-	("not", Func{level=topLevel(), label="not",
+	("not", Func{level=mainLevel, label="not",
 		formals=[TInt], result=TInt, extern=true}),
-	("exit", Func{level=topLevel(), label="exit",
+	("exit", Func{level=mainLevel, label="exit",
 		formals=[TInt], result=TUnit, extern=true})
 	])
 
@@ -85,10 +79,10 @@ fun eqList _ [] [] = true
 fun transExp (venv, tenv) =
 	let fun error(s, p) = raise Fail ("Error -- línea "^Int.toString(p)^": "^s^"\n")
 		fun trexp(VarExp v) = trvar(v)
-		| trexp(UnitExp _) = {exp=unitExp(), ty=TUnit}
-		| trexp(NilExp _)= {exp=nilExp(), ty=TNil}
-		| trexp(IntExp(i, _)) = {exp=intExp i, ty=TInt}
-		| trexp(StringExp(s, _)) = {exp=stringExp(s), ty=TString}
+		| trexp(UnitExp _) = {exp=(), ty=TUnit}
+		| trexp(NilExp _)= {exp=(), ty=TNil}
+		| trexp(IntExp(i, _)) = {exp=(), ty=TInt}
+		| trexp(StringExp(s, _)) = {exp=(), ty=TString}
 		| trexp(CallExp({func, args}, nl)) = 
 		    let
 		        val tyf = (case tabBusca(func, venv) of
@@ -101,50 +95,40 @@ fun transExp (venv, tenv) =
 		                    | SOME _                            => error(func^" no es una funcion", nl)
 		                    | NONE                              => error(func^" no existe", nl))
 		    in
-		        {exp=callExp(func,          ), ty = tyf}
+		        {exp=(), ty = tyf}
 		    end                                     (*COMPLETADO*)
 		| trexp(OpExp({left, oper=EqOp, right}, nl)) =
 			let
-				val {exp=expl, ty=tyl} = trexp left
-				val {exp=expr, ty=tyr} = trexp right
+				val {exp=_, ty=tyl} = trexp left
+				val {exp=_, ty=tyr} = trexp right
 			in
-				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then 
-					{exp=if tiposIguales tyl TString then binOpStrExp {left=expl,oper=EqOp,right=expr} else binOpIntRelExp {left=expl,oper=EqOp,right=expr}, ty=TInt}
+				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt}
 					else error("Tipos no comparables", nl)
 			end
 		| trexp(OpExp({left, oper=NeqOp, right}, nl)) = 
 			let
-				val {exp=expl, ty=tyl} = trexp left
-				val {exp=expr, ty=tyr} = trexp right
+				val {exp=_, ty=tyl} = trexp left
+				val {exp=_, ty=tyr} = trexp right
 			in
-				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then 
-					{exp=if tiposIguales tyl TString then binOpStrExp {left=expl,oper=NeqOp,right=expr} else binOpIntRelExp {left=expl,oper=NeqOp,right=expr}, ty=TInt}
+				if tiposIguales tyl tyr andalso not (tyl=TNil andalso tyr=TNil) andalso tyl<>TUnit then {exp=(), ty=TInt}
 					else error("Tipos no comparables", nl)
 			end
 		| trexp(OpExp({left, oper, right}, nl)) = 
 			let
-				val {exp=expl, ty=tyl} = trexp left
-				val {exp=expr, ty=tyr} = trexp right
+				val {exp=_, ty=tyl} = trexp left
+				val {exp=_, ty=tyr} = trexp right
 			in
 				if tiposIguales tyl tyr then
 					case oper of
-						PlusOp => if tiposIguales (tipoReal tyl) TInt then {exp=binOpIntExp {left=expl, oper=oper, right=expr},ty=TInt} else error("Error de tipos", nl)
-						| MinusOp => if tiposIguales (tipoReal tyl) TInt then {exp=binOpIntExp {left=expl, oper=oper, right=expr},ty=TInt} else error("Error de tipos", nl)
-						| TimesOp => if tiposIguales (tipoReal tyl) TInt then {exp=binOpIntExp {left=expl, oper=oper, right=expr},ty=TInt} else error("Error de tipos", nl)
-						| DivideOp => if tiposIguales (tipoReal tyl) TInt then {exp=binOpIntExp {left=expl, oper=oper, right=expr},ty=TInt} else error("Error de tipos", nl)
-						| LtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then
-							{exp=if tiposIguales (tipoReal tyl) TInt then binOpIntRelExp {left=expl,oper=oper,right=expr} else binOpStrExp {left=expl,oper=oper,right=expr},ty=TInt} 
-							else error("Error de tipos", nl)
-						| LeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then 
-							{exp=if tiposIguales (tipoReal tyl) TInt then binOpIntRelExp {left=expl,oper=oper,right=expr} else binOpStrExp {left=expl,oper=oper,right=expr},ty=TInt} 
-							else error("Error de tipos", nl)
-						| GtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then
-							{exp=if tiposIguales (tipoReal tyl) TInt then binOpIntRelExp {left=expl,oper=oper,right=expr} else binOpStrExp {left=expl,oper=oper,right=expr},ty=TInt} 
-							else error("Error de tipos", nl)
-						| GeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then
-							{exp=if tiposIguales (tipoReal tyl) TInt then binOpIntRelExp {left=expl,oper=oper,right=expr} else binOpStrExp {left=expl,oper=oper,right=expr},ty=TInt} 
-							else error("Error de tipos", nl)
-						| _ => raise Fail "No deberÃ­a pasar! (3)"
+						PlusOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| MinusOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| TimesOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| DivideOp => if tiposIguales (tipoReal tyl) TInt then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| LtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| LeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| GtOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| GeOp => if tiposIguales (tipoReal tyl) TInt orelse tiposIguales (tipoReal tyl) TString then {exp=(),ty=TInt} else error("Error de tipos", nl)
+						| _ => raise Fail "No debería pasar! (3)"
 				else error("Error de tipos", nl)
 			end
 		| trexp(RecordExp({fields, typ}, nl)) =
@@ -159,25 +143,25 @@ fun transExp (venv, tenv) =
 						| _ => error(typ^" no es de tipo record", nl))
 					| NONE => error("Tipo inexistente ("^typ^")", nl)
 				
-				(* Verificar que cada campo estÃ© en orden y tenga una expresiÃ³n del tipo que corresponde *)
-				fun verificar _ [] [] = []
-				  | verificar _ (c::cs) [] = error("Faltan campos", nl)
-				  | verificar _ [] (c::cs) = error("Sobran campos", nl)
-				  | verificar n ((s,t,_)::cs) ((sy,{exp,ty})::ds) =
+				(* Verificar que cada campo esté en orden y tenga una expresión del tipo que corresponde *)
+				fun verificar [] [] = ()
+				  | verificar (c::cs) [] = error("Faltan campos", nl)
+				  | verificar [] (c::cs) = error("Sobran campos", nl)
+				  | verificar ((s,t,_)::cs) ((sy,{exp,ty})::ds) =
 						if s<>sy then error("Error de campo", nl)
-						else if tiposIguales ty t then (exp, n)::(verificar (n+1) cs ds)
+						else if tiposIguales ty t then verificar cs ds
 							 else error("Error de tipo del campo "^s, nl)
-				val lf = verificar 0 cs tfields (*deberia estar ordenados de algnamanera para ir comparandolos*)
+				val _ = verificar cs tfields (*deberia estar ordenados de algnamanera para ir comparandolos*)
 			in
-				{exp=recordExp lf, ty=tyr}
+				{exp=(), ty=tyr}
 			end
 		| trexp(SeqExp(s, nl)) =
 			let	
-			  val lexti = map trexp s
+			    val lexti = map trexp s
 				val exprs = map (fn{exp, ty} => exp) lexti
 				val {exp, ty=tipo} = hd(rev lexti)
-			in	{ exp=seqExp (exprs), ty=tipo } end
-
+			in	{ exp=(), ty=tipo } 
+			end
 		| trexp(AssignExp({var=SimpleVar s, exp}, nl)) =
 		    let 
 		        val aty = (case tabBusca(s, venv) of
@@ -186,13 +170,13 @@ fun transExp (venv, tenv) =
 		                                                else error("Error de tipo de la expresion", nl)
 		                        | SOME (Func _)        => error("Asignacion incorrecta", nl)
 		                        | NONE                 => error("No existe variable", nl))
-			in {exp=nilExp(), ty=aty} 
+			in {exp=(), ty=aty} 
 			end                                                        (* COMPLETADO *)
 		| trexp(AssignExp({var, exp}, nl)) = 
 		    let 
 		        val tyVar = #ty (trvar (var,nl))
 		        val tyExp = #ty (trexp exp)
-			in if tiposIguales tyVar tyExp then {exp=nilExp(), ty=TUnit}
+			in if tiposIguales tyVar tyExp then {exp=(), ty=TUnit}
 			                               else error("Asignacion incorrecta", nl) 
 			end                                                       (* COMPLETADO *)
 		| trexp(IfExp({test, then', else'=SOME else'}, nl)) =
@@ -200,8 +184,7 @@ fun transExp (venv, tenv) =
 			    val {exp=thenexp, ty=tythen} = trexp then'
 			    val {exp=elseexp, ty=tyelse} = trexp else'
 			in
-				if tipoReal tytest=TInt andalso tiposIguales tythen tyelse then
-				{exp=if tipoReal tythen=TUnit then ifThenElseExpUnit {test=testexp,then'=thenexp,else'=elseexp} else ifThenElseExp {test=testexp,then'=thenexp,else'=elseexp}, ty=tythen}
+				if tipoReal tytest=TInt andalso tiposIguales tythen tyelse then {exp=(), ty=tythen}
 				else error("Error de tipos en if" ,nl)
 			end
 		| trexp(IfExp({test, then', else'=NONE}, nl)) =
@@ -209,8 +192,7 @@ fun transExp (venv, tenv) =
 			    val {exp=exptest,ty=tytest} = trexp test
 			    val {exp=expthen,ty=tythen} = trexp then'
 			in
-				if tipoReal tytest=TInt andalso tythen=TUnit then
-				{exp=ifThenExp{test=exptest, then'=expthen}, ty=TUnit}
+				if tipoReal tytest=TInt andalso tythen=TUnit then {exp=(), ty=TUnit}
 				else error("Error de tipos en if", nl)
 			end
 		| trexp(WhileExp({test, body}, nl)) =
@@ -218,7 +200,7 @@ fun transExp (venv, tenv) =
 				val ttest = trexp test
 				val tbody = trexp body
 			in
-        if tipoReal (#ty ttest) = TInt andalso #ty tbody = TUnit then {exp=whileExp {test=(#exp ttest), body=(#exp tbody), lev=topLevel()}, ty=TUnit}
+				if tipoReal (#ty ttest) = TInt andalso #ty tbody = TUnit then {exp=(), ty=TUnit}
 				else if tipoReal (#ty ttest) <> TInt then error("Error de tipo en la condición", nl)
 				                                     else error("El cuerpo de un while no puede devolver un valor", nl)
 			end
@@ -233,27 +215,20 @@ fun transExp (venv, tenv) =
 		        val venv' = tabRInserta(var, Var {ty=TROInt}, venv)
 		        val {ty=tyBody, ...} = transExp (venv', tenv) body
 		    in 
-		        if tyBody=TUnit then {exp=nilExp(), ty=TUnit}
+		        if tyBody=TUnit then {exp=(), ty=TUnit}
 	    	                    else error("El cuerpo debe devolver Unit", nl)
 		    end                                                                (* COMPLETADO *)
 		| trexp(LetExp({decs, body}, _)) =
 			let
-<<<<<<< semanoriginal.sml
-				fun aux (d, (v, t, exps1)) =
-				let
-					val (v', t', exps2) = trdec (v, t) d
-				in
-					(v', t', exps1@exps2)
-				end
 (*			  val _ = (print "ENTORNOOOOOOO ANTS #################\n"; (print o showTenv) tenv;print "FIN #################\n") *)
-				val (venv', tenv', expdecs) = List.foldl aux (venv, tenv, []) decs
+				val (venv', tenv', _) = List.foldl (fn (d, (v, t, _)) => (print "tenv\n";print (showTenv t);print "finnn\n";trdec(v, t) d) ) (venv, tenv, []) decs
 (*			  val _ = (print "ENTORNOOOOOOO DSP #################\n"; (print o showTenv) tenv';print "FIN #################\n") *)
-			  val {exp=expbody, ty=tybody} = transExp(venv', tenv') body
+			  val {ty=tybody, ...} = transExp(venv', tenv') body
 			in 
-				{exp=seqExp(expdecs@[expbody]), ty=tybody}
+				{exp=(), ty=tybody}
 			end
 		| trexp(BreakExp nl) =
-			{exp=nilExp(), ty=TUnit}                                      (*COMPLETADO*)
+			{exp=(), ty=TUnit}                                      (*COMPLETADO*)
 		| trexp(ArrayExp({typ, size, init}, nl)) =
 			let 
 			    val sizTy = #ty (trexp size)
@@ -267,11 +242,11 @@ fun transExp (venv, tenv) =
 			    val _ = if not (tiposIguales iniTy typTy) 
 			            then error("No coincide el tipo del inicializador", nl) else ()
 			in
-			    {exp=nilExp(), ty=resty }
+			    {exp=(), ty=resty }
 			end                                    (*COMPLETADO*) 
 		and trvar(SimpleVar s, nl) =
 		    (case tabBusca (s, venv) of
-		        SOME (Var {ty}) => {exp=nilExp(), ty=ty}
+		        SOME (Var {ty}) => {exp=(), ty=ty}
 		        | SOME _        => error(s^" no es una variable", nl)
 		        | _             => error("No existe "^s, nl))        (*COMPLETADO*)
 		| trvar(FieldVar(v, s), nl) =
@@ -281,7 +256,7 @@ fun transExp (venv, tenv) =
     		                                            SOME (n, t, i) => t
     		                                            | _            => error(s^" no es un campo del record", nl))
 	    	                    | _       => error("La variable no es un record", nl))
-		    in {exp=nilExp(), ty=sTy}
+		    in {exp=(), ty=sTy}
 		    end                                               (* COMPLETADO *)
 		| trvar(SubscriptVar(v, e), nl) =
 		    let
