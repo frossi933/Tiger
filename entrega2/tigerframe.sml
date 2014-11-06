@@ -5,7 +5,7 @@
 		|    ...     |
 		|    arg2    |	fp+16
 		|    arg1    |	fp+12
-		|	fp level |  fp+8
+		|   fp level |  fp+8
 		|  retorno   |	fp+4
 		|   fp ant   |	fp
 		--------------	fp
@@ -25,15 +25,15 @@ val fp = "FP"				(* frame pointer *)
 val sp = "SP"				(* stack pointer *)
 val rv = "RV"				(* return value  *)
 val ov = "OV"				(* overflow value (edx en el 386) *)
-val wSz = 4					(* word size in bytes *)
+val wSz = 4				(* word size in bytes *)
 val log2WSz = 2				(* base two logarithm of word size in bytes *)
 val fpPrev = 0				(* offset (bytes) *)
 val fpPrevLev = 8			(* offset (bytes) *)
 val argsInicial = 0			(* words *)
-val argsOffInicial = 0		(* words *)
+val argsOffInicial = 0			(* words *)
 val argsGap = wSz			(* bytes *)
 val regInicial = 1			(* reg *)
-val localsInicial = 0		(* words *)
+val localsInicial = 0			(* words *)
 val localsGap = ~4 			(* bytes *)
 val calldefs = [rv]
 val specialregs = [rv, fp, sp]

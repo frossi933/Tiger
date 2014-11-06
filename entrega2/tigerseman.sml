@@ -10,7 +10,16 @@ type expty = {exp: unit, ty: Tipo}
 type venv = (string, EnvEntry) tigertab.Tabla
 type tenv = (string, Tipo) tigertab.Tabla
 
-
+fun printTipo TUnit = "tunit"
+| printTipo TNil = "tnil"	
+| printTipo TInt = "tint"
+| printTipo TROInt = "troint"
+| printTipo TString = "tstring"
+| printTipo (TArray (t, _)) = "array ("^printTipo t^")"
+| printTipo (TRecord (fs, _)) = List.foldl (fn ((n, t, p),res) => "("^n^"::"^printTipo t^"); "^res) "" fs
+| printTipo (TTipo (s, r)) = (case !r of
+				NONE => "ttipo "^s^" none"
+				| SOME t => "ttipo "^s^" ("^printTipo t^" )")
 
 fun showTenv env = List.foldl (fn ((n,t),res) => n^"->"^printTipo t^"\n"^res) "" (tabAList env)
 
@@ -92,16 +101,16 @@ fun transExp (venv, tenv) =
 		| trexp(CallExp({func, args}, nl)) = 
 		    let
 		        val tyf = (case tabBusca(func, venv) of
-		                    SOME (Func {formals, result, ... }) => let 
-		                                                             val tyArgs = List.map (fn arg => #ty (trexp arg)) args
-		                                                           in  
-		                                                             if eqList tiposIguales tyArgs formals then result
-		                                                             else error("Argumentos incorrectos", nl)
-       	   	                                                       end
-		                    | SOME _                            => error(func^" no es una funcion", nl)
-		                    | NONE                              => error(func^" no existe", nl))
+		               SOME (Func {formals, result, ... }) => let 
+		                                       val tyArgs = List.map (fn arg => #ty (trexp arg)) args
+		                                                      in  
+		                                       if eqList tiposIguales tyArgs formals then result
+		                                       else error("Argumentos incorrectos", nl)
+       	   	                                                      end
+		               | SOME _                            => error(func^" no es una funcion", nl)
+		               | NONE                              => error(func^" no existe", nl))
 		    in
-		        {exp=callExp(func,          ), ty = tyf}
+		        {exp=nilExp(), ty = tyf}
 		    end                                     (*COMPLETADO*)
 		| trexp(OpExp({left, oper=EqOp, right}, nl)) =
 			let
@@ -181,8 +190,8 @@ fun transExp (venv, tenv) =
 		| trexp(AssignExp({var=SimpleVar s, exp}, nl)) =
 		    let 
 		        val aty = (case tabBusca(s, venv) of
-		                        SOME (Var {ty=TROInt}) => error("Entero de solo lectura", nl)
-		                        | SOME (Var {ty})      => if tiposIguales (#ty(trexp exp)) ty then TUnit
+		                        SOME (Var {ty=TROInt,...}) => error("Entero de solo lectura", nl)
+		                        | SOME (Var {ty,...})      => if tiposIguales (#ty(trexp exp)) ty then TUnit
 		                                                else error("Error de tipo de la expresion", nl)
 		                        | SOME (Func _)        => error("Asignacion incorrecta", nl)
 		                        | NONE                 => error("No existe variable", nl))
@@ -218,9 +227,10 @@ fun transExp (venv, tenv) =
 				val ttest = trexp test
 				val tbody = trexp body
 			in
-        if tipoReal (#ty ttest) = TInt andalso #ty tbody = TUnit then {exp=whileExp {test=(#exp ttest), body=(#exp tbody), lev=topLevel()}, ty=TUnit}
-				else if tipoReal (#ty ttest) <> TInt then error("Error de tipo en la condición", nl)
-				                                     else error("El cuerpo de un while no puede devolver un valor", nl)
+        if tiposIguales (tipoReal (#ty ttest)) TInt andalso #ty tbody = TUnit 
+	then {exp=whileExp {test=(#exp ttest), body=(#exp tbody), lev=topLevel()}, ty=TUnit}
+	else if not(tiposIguales (tipoReal (#ty ttest)) TInt) then error("Error de tipo en la condición", nl)
+				                              else error("El cuerpo de un while no puede devolver un valor", nl)
 			end
 		| trexp(ForExp({var, escape, lo, hi, body}, nl)) =
 		    let 
@@ -230,15 +240,14 @@ fun transExp (venv, tenv) =
 		        val tyHi = #ty (trexp hi)
 		        val _ = if tyHi <> TInt andalso tyHi <> TROInt 
 		                then error("Error en rango superior de iteracion", nl) else ()
-		        val venv' = tabRInserta(var, Var {ty=TROInt}, venv)
+		        val venv' = tabRInserta(var, Var {ty=TROInt,access=, level=getActualLev()}, venv)
 		        val {ty=tyBody, ...} = transExp (venv', tenv) body
 		    in 
 		        if tyBody=TUnit then {exp=nilExp(), ty=TUnit}
-	    	                    else error("El cuerpo debe devolver Unit", nl)
+	    	                        else error("El cuerpo debe devolver Unit", nl)
 		    end                                                                (* COMPLETADO *)
 		| trexp(LetExp({decs, body}, _)) =
 			let
-<<<<<<< semanoriginal.sml
 				fun aux (d, (v, t, exps1)) =
 				let
 					val (v', t', exps2) = trdec (v, t) d
