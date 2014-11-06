@@ -240,7 +240,8 @@ fun transExp (venv, tenv) =
 		        val tyHi = #ty (trexp hi)
 		        val _ = if tyHi <> TInt andalso tyHi <> TROInt 
 		                then error("Error en rango superior de iteracion", nl) else ()
-		        val venv' = tabRInserta(var, Var {ty=TROInt,access=, level=getActualLev()}, venv)
+			val acc' = allocLocal (topLevel()) (!escape)
+		        val venv' = tabRInserta(var, Var {ty=TROInt, access=acc', level=getActualLev()}, venv)
 		        val {ty=tyBody, ...} = transExp (venv', tenv) body
 		    in 
 		        if tyBody=TUnit then {exp=nilExp(), ty=TUnit}
@@ -280,7 +281,7 @@ fun transExp (venv, tenv) =
 			end                                    (*COMPLETADO*) 
 		and trvar(SimpleVar s, nl) =
 		    (case tabBusca (s, venv) of
-		        SOME (Var {ty}) => {exp=nilExp(), ty=ty}
+		        SOME (Var {ty, access, level}) => {exp=nilExp(), ty=ty}
 		        | SOME _        => error(s^" no es una variable", nl)
 		        | _             => error("No existe "^s, nl))        (*COMPLETADO*)
 		| trvar(FieldVar(v, s), nl) =
@@ -299,16 +300,17 @@ fun transExp (venv, tenv) =
 		                        | _           => error("La variable no es un arreglo", nl))
 		        val {exp=eExp, ty=eTy} = trexp e 
 		    in 
-		        if tiposIguales eTy TInt then {exp=(), ty=vTy}
+		        if tiposIguales eTy TInt then {exp=nilExp(), ty=vTy}
 		                                 else error("el indice no es un numero", nl)
 		    end                                               (*COMPLETADO*)
 		and trdec (venv, tenv) (VarDec ({name,escape,typ=NONE,init},nl)) = 
 		    let 
 		        val _ = (print ("tenv para "^name^"\n"); print (showTenv tenv); print "fin\n")
 		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
+			val acc'=allocLocal (topLevel()) (!escape)
 		    in 
 		        if iniTy=TNil then error("no se puede determinar el tipo de "^name, nl)
-		                                   else (tabRInserta (name, Var {ty=iniTy}, venv), tenv, [])
+		                                   else (tabRInserta (name, Var {ty=iniTy, access=acc', level=getActualLev() }, venv), tenv, [])
 		    end                                                          (*COMPLETADO*)
 		| trdec (venv,tenv) (VarDec ({name,escape,typ=SOME s,init},nl)) =
 		    let 
@@ -316,8 +318,9 @@ fun transExp (venv, tenv) =
 		                    SOME t => t
 		                    | NONE => error("No existe el tipo1", nl))
 		        val {exp=initE, ty=iniTy} = transExp (venv, tenv) init
+			val acc'=allocLocal (topLevel()) (!escape)
 		    in 
-		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=sTy}, venv), tenv, [])
+		        if tiposIguales iniTy sTy then (tabRInserta (name, Var {ty=sTy, access=acc', level=getActualLev()}, venv), tenv, [])
 		                                  else error("No coinciden los tipos", nl)
 		    end                                                             (*COMPLETADO*)
 		| trdec (venv,tenv) (FunctionDec fs) = 
@@ -328,13 +331,21 @@ fun transExp (venv, tenv) =
 		        val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
 		                then error("multiples declaraciones de una funcion en un batch", pnl) else ()
 		        fun getFormals (ps, nl) = List.map (fn {typ, ... } => trty (typ, tenv, nl)) ps
-		        fun genFuncEntry ({name, params, result=NONE, body}, nl) = (name, Func {level=mainLevel, label=tigertemp.newlabel(), 
-		                                                                         formals = getFormals(params, nl), 
-		                                                                         extern=false, result=TUnit})
+		        fun genFuncEntry ({name, params, result=NONE, body}, nl) =let val formalsTips = getFormals(params,nl)
+										      val formalsBool = 
+									    	      val lev'= newLevel {parent=topLevel(), name=name, formals=formalsBool}
+										  in (name, Func {level=lev', label=tigertemp.newlabel(), 
+		                                                              		formals = formalsTips, extern=false, 
+		                                                              		result=TUnit})
+										  end
 		        | genFuncEntry ({name, params, result=SOME t, body}, nl) = (case tabBusca(t,tenv) of
-		                                            SOME typ => (name, Func {level=mainLevel, label=tigertemp.newlabel(), 
-		                                                              formals = getFormals(params, nl), extern=false, 
+		                                            SOME typ => let val formalsTips = getFormals(params,nl)
+									    val formalsBool = 
+									    val lev'= newLevel {parent=topLevel(), name=name, formals=formalsBool}
+									in (name, Func {level=lev', label=tigertemp.newlabel(), 
+		                                                              formals = formalsTips, extern=false, 
 		                                                              result=typ})
+									end
 		                                            | NONE => error("No existe el tipo2 "^t, nl))
 		        val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
 		        fun trbody (({name, params, result, body}, nl), env) = 

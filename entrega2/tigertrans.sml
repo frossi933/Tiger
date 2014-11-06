@@ -152,8 +152,10 @@ fun simpleVar(acc, nivel) = case acc of
 
 fun varDec(acc) = simpleVar(acc, getActualLev())
 
-fun fieldVar(var, field) = 
-			Ex (CONST 0) (*COMPLETAR*)
+fun fieldVar(var, field) = let val varex = unEx var
+			   in Ex (MEM (BINOP (PLUS, varex, field*wSz)))
+			   end
+					 (*COMPLETADO''*)
 
 fun subscriptVar(arr, ind) =
 let
