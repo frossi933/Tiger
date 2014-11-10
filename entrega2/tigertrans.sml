@@ -145,7 +145,7 @@ fun intExp i = Ex (CONST i)
 fun simpleVar(acc, nivel) = case acc of
 			InReg r => Ex (TEMP r)
 			| InFrame k => let fun aux 0 = TEMP fp
-					   | aux n = MEM (BINOP(PLUS, fpPrevLev, aux(n-1)))
+					   | aux n = MEM (BINOP(PLUS, CONST fpPrevLev, aux(n-1)))
 				       in Ex (MEM(BINOP(PLUS, aux(getActualLev() - nivel),CONST k)))
 				       end
 										 (* COMPLETADO *)
@@ -153,7 +153,7 @@ fun simpleVar(acc, nivel) = case acc of
 fun varDec(acc) = simpleVar(acc, getActualLev())
 
 fun fieldVar(var, field) = let val varex = unEx var
-			   in Ex (MEM (BINOP (PLUS, varex, field*wSz)))
+			   in Ex (MEM (BINOP (PLUS, varex, CONST (field*wSz))))
 			   end
 					 (*COMPLETADO''*)
 
@@ -183,7 +183,7 @@ fun recordExp (l:(tigerabs.exp * int) list) = (* usaremos una funcion de runtime
 	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))]
 		    ,MOVE(TEMP ret,TEMP rv)], 
 	       TEMP ret))
-					(*COMPLETADO*)
+	end					(*COMPLETADO*)
 
 fun arrayExp{size, init} =
 let
@@ -217,9 +217,9 @@ fun callExp (f, proc, extern,{level, ...},la) =
 	in
 	    if proc then Nx(seq[ta'@[CALL(NAME f, ta')]])
 	    else let val tmp=newtemp()
-	         in Ex (ESEQ (seq[la'@[CALL(NAME f, ta')]),
-	                      MOVE (TEMP tmp, TEMP rv)],
-	                TEMP tmp)
+	         in Ex (ESEQ (seq[la'@[CALL(NAME f, ta'),
+	                      MOVE (TEMP tmp, TEMP rv)]],
+	                TEMP tmp))
 	         end
 	end
 	      (*COMPLETADO'''*)
@@ -299,11 +299,12 @@ fun forExp {lo, hi, var, body} = let val var'= unEx var
 								unNx body,
 								LABEL lsal]
 							end))
+					end
 	(*COMPLETADO*)
 
-fun ifThenExp{test, then'} = let tecx = unCx test
-                                 thnx = unNx then'
-                                 (t,f) = (newlabel(),newlabel())
+fun ifThenExp{test, then'} = let val tecx = unCx test
+                                 val thnx = unNx then'
+                                 val (t,f) = (newlabel(),newlabel())
                              in
                                  Nx (seq[tecx(t,f),
                                          LABEL t,
@@ -312,11 +313,11 @@ fun ifThenExp{test, then'} = let tecx = unCx test
                              end  
   (*COMPLETADO'*)
 
-fun ifThenElseExp {test,then',else'} = let tecx = unCx test
-                                           thex = unEx then'
-                                           elex = unEx else'
-                                           (t,f,sal) = (newlabel(),newlabel(),newlabel())
-                                           aux = newtemp()
+fun ifThenElseExp {test,then',else'} = let val tecx = unCx test
+                                           val thex = unEx then'
+                                           val elex = unEx else'
+                                           val (t,f,sal) = (newlabel(),newlabel(),newlabel())
+                                           val aux = newtemp()
                                        in
                                            Ex (ESEQ (seq[tecx(t,f),
                                                          LABEL t,
@@ -328,10 +329,11 @@ fun ifThenElseExp {test,then',else'} = let tecx = unCx test
                                        end
     (*COMPLETADO' *)
 
-fun ifThenElseExpUnit {test,then',else'} = let tecx = unCx test
-                                               thnx = unNx then'
-                                               elnx = unNx else'
-                                               (t,f,sal) = (newlabel(),newlabel(), newlabel())
+fun ifThenElseExpUnit {test,then',else'} = let 
+						val tecx = unCx test
+                                              	val thnx = unNx then'
+                                               	val elnx = unNx else'
+                                               	val (t,f,sal) = (newlabel(),newlabel(), newlabel())
                                            in
                                                Nx (seq[tecx(t,f),
                                                        LABEL t,
@@ -369,7 +371,7 @@ fun binOpIntRelExp {left,oper,right} =
 	    val r = unEx right
 	    fun subst oper = fn (t,f) => CJUMP (oper, l, r, t, f)
 	in case oper of
-	      | EpOp => Cx(subst EQ)
+	      EpOp => Cx(subst EQ)
 	      | NeqOp => Cx(subst NE) 
 	      | LtOp => Cx(subst LT)
 	      | GtOp => Cx(subst GT)

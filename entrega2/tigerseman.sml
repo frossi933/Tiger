@@ -4,6 +4,7 @@ struct
 open tigerabs
 open tigersres
 open tigertrans
+open topsort
 
 type expty = {exp: unit, ty: Tipo}
 
@@ -24,7 +25,7 @@ fun printTipo TUnit = "tunit"
 fun showTenv env = List.foldl (fn ((n,t),res) => n^"->"^printTipo t^"\n"^res) "" (tabAList env)
 
 
-val tab_tipos : (string, Tipo) Tabla = tabInserList(
+val tab_tipos : tenv = tabInserList(
 	tabNueva(),
 	[("int", TInt), ("string", TString)])
 
@@ -326,13 +327,13 @@ fun transExp (venv, tenv) =
 		| trdec (venv,tenv) (FunctionDec fs) = 
 		    let
 (*		        val _ = print "function" *)
-				val _ = (print "entorno en la funcion\n"; (print o showTenv) tenv;print "FIN\n")
+			val _ = (print "entorno en la funcion\n"; (print o showTenv) tenv;print "FIN\n")
 		        val pnl = #2(List.hd fs)
 		        val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
 		                then error("multiples declaraciones de una funcion en un batch", pnl) else ()
 		        fun getFormals (ps, nl) = List.map (fn {typ, ... } => trty (typ, tenv, nl)) ps
 		        fun genFuncEntry ({name, params, result=NONE, body}, nl) =let val formalsTips = getFormals(params,nl)
-										      val formalsBool = 
+										      val formalsBool = List.map (fn {escape, ...} => !escape) params 
 									    	      val lev'= newLevel {parent=topLevel(), name=name, formals=formalsBool}
 										  in (name, Func {level=lev', label=tigertemp.newlabel(), 
 		                                                              		formals = formalsTips, extern=false, 
@@ -340,7 +341,7 @@ fun transExp (venv, tenv) =
 										  end
 		        | genFuncEntry ({name, params, result=SOME t, body}, nl) = (case tabBusca(t,tenv) of
 		                                            SOME typ => let val formalsTips = getFormals(params,nl)
-									    val formalsBool = 
+									    val formalsBool = List.map (fn {escape, ...} => !escape) params
 									    val lev'= newLevel {parent=topLevel(), name=name, formals=formalsBool}
 									in (name, Func {level=lev', label=tigertemp.newlabel(), 
 		                                                              formals = formalsTips, extern=false, 
@@ -349,8 +350,9 @@ fun transExp (venv, tenv) =
 		                                            | NONE => error("No existe el tipo2 "^t, nl))
 		        val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
 		        fun trbody (({name, params, result, body}, nl), env) = 
-		            let 
-		                val env'' : venv = List.foldl (fn ({typ, name, ...}, e) => tabInserta(name, Var {ty=trty(typ, tenv, nl)}, e)) env params
+		            let
+				fun insertParams ({typ, name, escape},e) = tabInserta(name, Var {ty=trty(typ,tenv,nl), access=allocLocal (topLevel()) (!escape),level=getActualLev()+1 },e)(*no se si se le suma 1*)
+ 		                val env'' = List.foldl insertParams env params
 		                val {ty=bodyTy, ...} = transExp(env'', tenv) body
 		                val _ = (case result of
 		                            NONE => if not(tiposIguales bodyTy TUnit) then error("La funcion "^name^" no debe devolver nada", nl) 
@@ -365,7 +367,7 @@ fun transExp (venv, tenv) =
 		        (venv', tenv, []) 
 		    end                                                         (* COMPLETADO *)
 		| trdec (venv, tenv) (TypeDec []) = (venv, tenv, [])
-		| trdec (venv, tenv) (TypeDec ts) =
+		| trdec (venv, tenv:tenv) (TypeDec ts) =
 			let 
 				val nl = #2(hd ts)
 				val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) ts))) <> List.length ts) 
