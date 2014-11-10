@@ -171,7 +171,7 @@ in
 			BINOP(MUL, TEMP ri, CONST tigerframe.wSz)))))
 end
 
-fun recordExp (l:(tigerabs.exp * int) list) = (* usaremos una funcion de runtime *)
+fun recordExp l:((tigerabs.exp * int) list) = (* usaremos una funcion de runtime *)
 	let val ret = newtemp()
 	    fun genTemps n = List.tabulate(n, (fn _ => newtemp()))
 	    val regs = genTemps(length l)
@@ -180,9 +180,9 @@ fun recordExp (l:(tigerabs.exp * int) list) = (* usaremos una funcion de runtime
 	    val lexps'=List.map #1 lexps
 	    val l'=Listsort.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
 	in
-	    EX(ESEQ(seq[lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l'))]
-		    ,MOVE(TEMP ret,TEMP rv)], 
-	       TEMP ret))
+	    Ex (ESEQ((seq (lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l')),
+		    	          MOVE(TEMP ret,TEMP rv)])), 
+	       	     TEMP ret))
 	end					(*COMPLETADO*)
 
 fun arrayExp{size, init} =
