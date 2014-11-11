@@ -1,8 +1,8 @@
 # Unix makefile for tigermain example
 #HOME=/home/alumno
-HOME=/home/estudiante
-MOSMLHOME=${HOME}/mosml
-MOSMLTOOLS=camlrunm $(MOSMLHOME)/tools
+#HOME=/home/estudiante
+#MOSMLHOME=${HOME}/mosml
+#MOSMLTOOLS=camlrunm $(MOSMLHOME)/tools
 #MOSMLLEX=${MOSMLHOME}/bin/mosmllex
 #MOSMLYACC=${MOSMLHOME}/bin/mosmlyac -v
 MOSMLLEX=mosmllex

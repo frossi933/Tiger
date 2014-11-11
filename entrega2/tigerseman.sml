@@ -99,19 +99,24 @@ fun transExp (venv, tenv) =
 		| trexp(NilExp _)= {exp=nilExp(), ty=TNil}
 		| trexp(IntExp(i, _)) = {exp=intExp i, ty=TInt}
 		| trexp(StringExp(s, _)) = {exp=stringExp(s), ty=TString}
-		| trexp(CallExp({func, args}, nl)) = 
+		| trexp(CallExp({func=name, args}, nl)) = 
 		    let
-		        val tyf = (case tabBusca(func, venv) of
-		               SOME (Func {formals, result, ... }) => let 
-		                                       val tyArgs = List.map (fn arg => #ty (trexp arg)) args
-		                                                      in  
-		                                       if eqList tiposIguales tyArgs formals then result
-		                                       else error("Argumentos incorrectos", nl)
-       	   	                                                      end
-		               | SOME _                            => error(func^" no es una funcion", nl)
-		               | NONE                              => error(func^" no existe", nl))
+		        val (expf, tyf) = (case tabBusca(name, venv) of
+		               SOME (Func {formals, result, extern, level, label}) => 
+								let 
+									fun getArgs a = let val {exp, ty} = trexp a in (exp, ty) end
+									val (lexp, lty) = ListPair.unzip (List.map getArgs args)
+									val _ = if not(eqList tiposIguales lty formals) then error("Argumentos incorrectos", nl) else ()
+									val isproc = if result=TUnit then true 
+																 else false
+									val expf' = callExp(name, isproc, extern, level, lexp) 
+		                        in  
+									 (expf', result)
+       	   	                    end
+					   | SOME _                            => error(name^" no es una funcion", nl)
+		               | NONE                              => error(name^" no existe", nl))
 		    in
-		        {exp=nilExp(), ty = tyf}
+		        {exp=expf, ty = tyf}
 		    end                                     (*COMPLETADO*)
 		| trexp(OpExp({left, oper=EqOp, right}, nl)) =
 			let
@@ -177,7 +182,7 @@ fun transExp (venv, tenv) =
 						if s<>sy then error("Error de campo", nl)
 						else if tiposIguales ty t then (exp, n)::(verificar (n+1) cs ds)
 							 else error("Error de tipo del campo "^s, nl)
-				val lf = verificar 0 cs tfields (*deberia estar ordenados de algnamanera para ir comparandolos*)
+				val lf = verificar 0 cs tfields 					(*deberia estar ordenados de algnamanera para ir comparandolos*)
 			in
 				{exp=recordExp lf, ty=tyr}
 			end

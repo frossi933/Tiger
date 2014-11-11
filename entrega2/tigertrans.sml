@@ -171,7 +171,7 @@ in
 			BINOP(MUL, TEMP ri, CONST tigerframe.wSz)))))
 end
 
-fun recordExp l:((tigerabs.exp * int) list) = (* usaremos una funcion de runtime *)
+fun recordExp l = (*:((tigerabs.exp * int) list) =    usaremos una funcion de runtime *)
 	let val ret = newtemp()
 	    fun genTemps n = List.tabulate(n, (fn _ => newtemp()))
 	    val regs = genTemps(length l)
@@ -180,8 +180,8 @@ fun recordExp l:((tigerabs.exp * int) list) = (* usaremos una funcion de runtime
 	    val lexps'=List.map #1 lexps
 	    val l'=Listsort.sort (fn ((_, m,_),(_,n,_))=>Int.compare(m,n)) lexps
 	in
-	    Ex (ESEQ((seq (lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::List.map #3 l')),
-		    	          MOVE(TEMP ret,TEMP rv)])), 
+	    Ex (ESEQ(seq (lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::(List.map #3 l'))),
+		    	              MOVE(TEMP ret,TEMP rv)]), 
 	       	     TEMP ret))
 	end					(*COMPLETADO*)
 
@@ -193,32 +193,32 @@ in
 	Ex (externalCall("allocArray", [s, i]))
 end
 
-(*fun callExp (name,external,isproc,lev:level,ls) = *)
-fun callExp (f, proc, extern,{level, ...},la) =
+
+fun callExp (f, isproc, extern,{level, ...},la) =
 	let fun menAmay 0 = TEMP fp
 	    | menAmay n = MEM (BINOP(PLUS, menAmay (n-1), CONST fpPrevLev))
 	    val fplev=if level=getActualLev() then
 	          MEM(BINOP(PLUS, TEMP fp, CONST fpPrevLev))
-	              else if level <getActualLev() then
+	              else if level < getActualLev() then
 	                        menAmay(getActualLev() - level + 1)
 	                   else TEMP fp
 	    (*usaremos convencion de llamadas e C junto con la exigencia de Tiger, 
 	      efectos laterales de izq a der, args en stack de der a izq *) 
 	    fun preparaArgs [] (rt, re) = (rt, re)
 	    |   preparaArgs (h::t) (rt, re) = case h of
-	                          Ex (CONST s) => preparaArgs t ((CONST s)::rt, re)
-	                          | Ex (NAME s) => preparaArgs t ((NAME s)::rt, re)
-	                          | Ex (TEMP s) => preparaArgs t ((TEMP s)::rt, re)
+	                          Ex (CONST s) => preparaArgs t (CONST s)::rt, re)
+	                          | Ex (NAME s) => preparaArgs t (NAME s)::rt, re)
+	                          | Ex (TEMP s) => preparaArgs t (TEMP s)::rt, re)
 	                          | _ => let val t' = newtemp()
-	                                 in preparaArgs t (t'::rt, (MOVE (TEMP t', unEx h)::re))
+	                                 in preparaArgs t ((TEMP t')::rt, (MOVE (TEMP t', unEx h)::re))
 	                                 end
 	    val (ta, la')=preparaArgs (rev la) ([],[])
-	    val ta' = if extern then ta else fpLev::ta
+	    val ta' = if extern then ta else (EXP fplev)::ta
 	in
-	    if proc then Nx(seq[ta'@[CALL(NAME f, ta')]])
+	    if isproc then Nx (seq (ta'@[EXP (CALL(NAME f, ta'))]))
 	    else let val tmp=newtemp()
-	         in Ex (ESEQ (seq[la'@[CALL(NAME f, ta'),
-	                      MOVE (TEMP tmp, TEMP rv)]],
+	         in Ex (ESEQ (seq (la'@[CALL(NAME f, ta'),
+	                      MOVE (TEMP tmp, TEMP rv)]),
 	                TEMP tmp))
 	         end
 	end
