@@ -194,7 +194,7 @@ in
 end
 
 
-fun callExp (f, isproc, extern,{level, ...},la) =
+fun callExp (f, isproc, extern, {level, parent, frame},la) =
 	let fun menAmay 0 = TEMP fp
 	    | menAmay n = MEM (BINOP(PLUS, menAmay (n-1), CONST fpPrevLev))
 	    val fplev=if level=getActualLev() then
@@ -205,19 +205,19 @@ fun callExp (f, isproc, extern,{level, ...},la) =
 	    (*usaremos convencion de llamadas e C junto con la exigencia de Tiger, 
 	      efectos laterales de izq a der, args en stack de der a izq *) 
 	    fun preparaArgs [] (rt, re) = (rt, re)
-	    |   preparaArgs (h::t) (rt, re) = case h of
-	                          Ex (CONST s) => preparaArgs t (CONST s)::rt, re)
-	                          | Ex (NAME s) => preparaArgs t (NAME s)::rt, re)
-	                          | Ex (TEMP s) => preparaArgs t (TEMP s)::rt, re)
+	    |   preparaArgs (h::t) (rt, re) = (case h of
+	                          Ex (CONST s) => preparaArgs t ((CONST s)::rt, re)
+	                          | Ex (NAME s) => preparaArgs t ((NAME s)::rt, re)
+	                          | Ex (TEMP s) => preparaArgs t ((TEMP s)::rt, re)
 	                          | _ => let val t' = newtemp()
 	                                 in preparaArgs t ((TEMP t')::rt, (MOVE (TEMP t', unEx h)::re))
-	                                 end
+	                                 end)
 	    val (ta, la')=preparaArgs (rev la) ([],[])
-	    val ta' = if extern then ta else (EXP fplev)::ta
+	    val ta' = if extern then ta else fplev::ta
 	in
-	    if isproc then Nx (seq (ta'@[EXP (CALL(NAME f, ta'))]))
+	    if isproc then Nx (seq (la'@[EXP (CALL(NAME f, ta'))]))
 	    else let val tmp=newtemp()
-	         in Ex (ESEQ (seq (la'@[CALL(NAME f, ta'),
+	         in Ex (ESEQ (seq (la'@[EXP (CALL(NAME f, ta')),
 	                      MOVE (TEMP tmp, TEMP rv)]),
 	                TEMP tmp))
 	         end
@@ -228,8 +228,9 @@ fun letExp ([], body) = Ex (unEx body)
  |  letExp (inits, body) = Ex (ESEQ(seq inits,unEx body))
 
 fun breakExp() = let val ts=topSalida()
-		 in Nx (JUMP (LABEL ts, [ts]))
-		 end								(* COMPLETADO *)
+		             in Nx (JUMP (NAME ts, [ts]))
+            		 end
+            		                                								(* COMPLETADO *)
 
 fun seqExp ([]:exp list) = Nx (EXP(CONST 0))
 	| seqExp (exps:exp list) =
@@ -265,7 +266,7 @@ in
 end
 
 fun forExp {lo, hi, var, body} = let val var'= unEx var
-				     val (l1, l2, lsal) = (newlabel(), newlabel(), topSalida())
+				     val (l1, l2, l3, lsal) = (newlabel(), newlabel(), newlabel(), topSalida())
 				 in Nx (seq (case hi of
 					Ex (CONST n) => if (valOf Int.maxInt>n) then
 									(* haremos un while *)
@@ -376,6 +377,7 @@ fun binOpIntRelExp {left,oper,right} =
 	      | LtOp => Cx(subst LT)
 	      | GtOp => Cx(subst GT)
 	      | GeOp => Cx(subst GE)
+	      | LeOp => Cx(subst LE)
 	      | _ => raise Fail "Error interno: Operacion no relacional\n"
 	end    
 	      (*COMPLETADO''*)
@@ -383,13 +385,14 @@ fun binOpIntRelExp {left,oper,right} =
 fun binOpStrExp {left,oper,right} =
 	let val sl = unEx left
 	    val sr = unEx right
-	    fun subst oper = fn (t,f) => CJUMP(oper, ESEQ(externalCall("_stringCompare",[sl, sr]), TEMP rv), CONST 0, t, f)
+	    fun subst oper = fn (t,f) => CJUMP(oper, ESEQ(EXP (externalCall("_stringCompare",[sl, sr])), TEMP rv), CONST 0, t, f)
 	in  case oper of
 	        EqOp => Cx(subst EQ)
 	        | NeqOp => Cx(subst NE)
 	        | LtOp => Cx(subst LT)
 	        | GtOp => Cx(subst GT)
 	        | GeOp => Cx(subst GE)
+   	      | LeOp => Cx(subst LE)
 	        | _ => raise Fail "Error interno: Operacion no relacional para strings\n"	    
 	end
 	 (*COMPLETADO '''*)

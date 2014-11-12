@@ -63,7 +63,7 @@ fun newFrame{name, formals} = {
 }
 fun name(f: frame) = #name f
 fun string(l, s) = l^tigertemp.makeString(s)^"\n"
-fun formals({formals=f, ...}: frame) = 
+fun formals({formals=f, ...}: frame) =  (* COMPLETAAR *)
 	let	fun aux(n, []) = []
 		| aux(n, h::t) = InFrame(n)::aux(n+argsGap, t)
 	in aux(argsInicial, f) end
