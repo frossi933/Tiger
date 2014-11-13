@@ -364,14 +364,21 @@ fun transExp (venv, tenv) =
                              | NONE => error("No existe el tipo2 "^t, nl))
                        end
             val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
+			val _ = preFunctionDec()
             fun trbody (({name, params, result, body}, nl), env) = 
                 let
-                    fun insertParams ({typ, name, escape},e) = tabInserta(name, Var {ty=trty(typ,tenv,nl), access=allocLocal (topLevel()) (!escape),level=getActualLev()+1 },e)(*no se si se le suma 1*)
-                    val env'' = List.foldl insertParams env params
+					
+                    fun insertParams ({typ, name, escape},(acs,e)) = 
+						let
+							val accvar = allocArg (topLevel()) (!escape)
+						in
+							((accvar::acs), tabInserta(name, Var {ty=trty(typ,tenv,nl), access=accvar,level=getActualLev() },e))
+						end
+                    val (accs, env'') = List.foldl insertParams ([],env) params
                     val {ty=bodyTy, exp=bodyExp} = transExp(env'', tenv) body
                     val lev = (case tabBusca (name, env) of
-                                  SOME (Func {level, ...}) => level
-                                  | _ => error("error interno en functiondec",nl)) 
+                                  SOME (Func {level, label, formals, result, extern}) => (tigerframe.insertAccs (getFrame level) accs;level)
+                                  | _ => error("error interno en functiondec",nl))
                     val _ = procEntryExit{level=lev, body=bodyExp}
                     val _ = (case result of
                                 NONE => if not(tiposIguales bodyTy TUnit) then error("La funcion "^name^" no debe devolver nada", nl) 
@@ -382,6 +389,7 @@ fun transExp (venv, tenv) =
                                                 | NONE => error("No existe el tipo3 "^st, nl)))
                 in () end
             val _ = List.map (fn f => trbody(f, venv')) fs
+			val _ = postFunctionDec()
         in 
             (venv', tenv, []) 
         end                                                         (* COMPLETADO *)
