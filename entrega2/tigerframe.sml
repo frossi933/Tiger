@@ -42,6 +42,10 @@ val callersaves = []
 val calleesaves = []
 
 datatype access = InFrame of int | InReg of tigertemp.label
+
+fun accStr (InFrame n) = print ("In frame "^Int.toString(n)^".\n")
+| accStr (InReg l) = print ("In Reg "^l^".\n")
+
 type frame = {
 	name: string,
 	formals: bool list,
@@ -65,13 +69,13 @@ fun newFrame{name, formals} = {name=name,
 fun slAccess() = InFrame fpPrevLev
 fun name(f: frame) = #name f
 fun string(l, s) = l^tigertemp.makeString(s)^"\n"
-fun formals({accList=f, ...}: frame) = !f  
+fun formals({accList=f, ...}: frame) = ((print "ahreloco");(List.app accStr (!f)) ; !f)
 (* COMPLETAAR
 	let	fun aux(n, []) = []
 		| aux(n, h::t) = InFrame(n)::aux(n+argsGap, t)
 	in aux(argsInicial, f) end *)
 fun maxRegFrame(f: frame) = !(#actualReg f)
-fun insertAccs ({accList, ...}:frame) acs = accList := acs
+fun insertAccs ({accList, name, ...}:frame) acs = (print (name^"->"); List.app accStr acs; accList := acs)
 fun allocArg (f: frame) b = 
 	case b of
 	true =>
