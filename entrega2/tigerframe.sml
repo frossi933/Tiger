@@ -41,17 +41,17 @@ val argregs = []
 val callersaves = []
 val calleesaves = []
 
+datatype access = InFrame of int | InReg of tigertemp.label
 type frame = {
 	name: string,
 	formals: bool list,
-	accList: tigertrans.access list ref,
+	accList: access list ref,
 	locals: bool list,
 	actualArg: int ref,
 	actualLocal: int ref,
 	actualReg: int ref
 }
 type register = string
-datatype access = InFrame of int | InReg of tigertemp.label
 datatype frag = PROC of {body: tigertree.stm, frame: frame}
 	| STRING of tigertemp.label * string
 fun newFrame{name, formals} = {name=name,
@@ -62,6 +62,7 @@ fun newFrame{name, formals} = {name=name,
 							actualLocal=ref localsInicial,
 							actualReg=ref regInicial}
 
+fun slAccess() = InFrame fpPrevLev
 fun name(f: frame) = #name f
 fun string(l, s) = l^tigertemp.makeString(s)^"\n"
 fun formals({accList=f, ...}: frame) = !f  
@@ -70,7 +71,7 @@ fun formals({accList=f, ...}: frame) = !f
 		| aux(n, h::t) = InFrame(n)::aux(n+argsGap, t)
 	in aux(argsInicial, f) end *)
 fun maxRegFrame(f: frame) = !(#actualReg f)
-fun insertAccs {accList, ...} acs = accList := acs
+fun insertAccs ({accList, ...}:frame) acs = accList := acs
 fun allocArg (f: frame) b = 
 	case b of
 	true =>

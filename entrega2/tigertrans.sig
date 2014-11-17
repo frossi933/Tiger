@@ -4,7 +4,7 @@ exception breakexc
 exception divCero
 
 type level
-type access
+type access = tigerframe.access
 type frag = tigerframe.frag
 val outermost : level
 val newLevel : {parent: level, name: tigertemp.label,

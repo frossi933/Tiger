@@ -8,7 +8,7 @@ open tigerabs
 exception breakexc
 exception divCero
 	
-type level = {parent:frame option , frame: frame, level: int}
+type level = {parent:frame option , frame: tigerframe.frame, level: int}
 type access = tigerframe.access
 
 type frag = tigerframe.frag
@@ -25,7 +25,7 @@ fun newLevel{parent={parent, frame, level}, name, formals} =
 	frame=newFrame{name=name, formals=formals},
 	level=level+1}
 
-fun getFrame {frame,...} = frame
+fun getFrame (lvl : level) : tigerframe.frame = #frame lvl
 
 fun allocArg{parent, frame, level} b = tigerframe.allocArg frame b
 
@@ -185,7 +185,112 @@ fun recordExp l = (*:((tigerabs.exp * int) list) =    usaremos una funcion de ru
 	    Ex (ESEQ(seq (lexps'@[EXP(externalCall("_allocRecord",CONST(length l)::(List.map #3 l'))),
 		    	              MOVE(TEMP ret,TEMP rv)]), 
 	       	     TEMP ret))
-	end					(*COMPLETADO*)
+	end					(*# Unix makefile for tigermain example
+
+### LabBasica
+
+#HOME=/home/alumno
+#MOSMLHOME=${HOME}/mosml
+#MOSMLTOOLS=${MOSMLHOME}/bin/camlrunm $(MOSMLHOME)/tools
+
+### Casa
+
+HOME=/home/felipe
+MOSMLHOME=/usr/local
+MOSMLTOOLS=${MOSMLHOME}/bin/camlrunm $(MOSMLHOME)/share/mosml/tools
+
+MOSMLLEX=${MOSMLHOME}/bin/mosmllex
+MOSMLYACC=${MOSMLHOME}/bin/mosmlyac -v
+
+GCC=gcc
+CFLAGS= -g
+MOSMLC=${MOSMLHOME}/bin/mosmlc -c -liberal
+MOSMLL=${MOSMLHOME}/bin/mosmlc
+
+# Unix
+REMOVE=rm -f
+MOVE=mv
+EXEFILE=
+
+# DOS
+#REMOVE=del
+#MOVE=move
+#EXEFILE=.exe
+
+.SUFFIXES :
+.SUFFIXES : .sig .sml .ui .uo
+
+GRALOBJS= tigerabs.uo tigergrm.uo tigerlex.uo tigermain.uo \
+	tigernlin.uo tigerpp.uo tigerescap.uo tigertab.uo tigerseman.uo tigertemp.uo topsort.uo tigertopsort.uo tigertree.uo \
+ 	tigerframe.uo tigertrans.uo tigerit.uo tigerpila.uo tigerinterp.uo tigercanon.uo
+
+all: tiger
+
+tiger: $(GRALOBJS) $(OBJSGEN)
+	$(MOSMLL) -o tiger $(EXEFILE) tigermain.uo
+
+tigergrm.sml tigergrm.sig: tigergrm.y 
+	$(MOSMLYACC) tigergrm.y
+
+tigerlex.sml: tigerlex.lex
+	$(MOSMLLEX) tigerlex.lex
+
+clean:
+	$(REMOVE) Makefile.bak
+	$(REMOVE) tigergrm.output
+	$(REMOVE) tigergrm.sig
+	$(REMOVE) tigergrm.sml
+	$(REMOVE) tigerlex.sml
+	$(REMOVE) tiger
+	$(REMOVE) *.ui
+	$(REMOVE) *.uo
+	$(REMOVE) errlist
+	$(REMOVE) *.o
+
+.sig.ui:
+	$(MOSMLC) $<
+
+.sml.uo:
+	$(MOSMLC) $<
+
+depend: tigerabs.sml tigergrm.sml tigerlex.sml tigermain.sml \
+	tigernlin.sml tigerpp.sml tigertopsort.sml
+	$(REMOVE) Makefile.bak
+	$(MOVE) Makefile Makefile.bak
+	$(MOSMLTOOLS)/cutdeps < Makefile.bak > Makefile
+	$(MOSMLTOOLS)/mosmldep >> Makefile
+
+### DO NOT DELETE THIS LINE
+tigerpp.uo: tigerabs.uo 
+tigercanon.uo: tigercanon.ui tigertree.uo tigertab.ui tigertemp.ui 
+tigermain.uo: tigerseman.ui tigerescap.ui tigergrm.ui tigerframe.ui \
+    tigercanon.ui tigerinterp.uo tigerlex.uo tigertrans.ui tigerpp.uo 
+tigerlex.uo: tigergrm.ui tigernlin.uo 
+tigerpila.uo: tigerpila.ui 
+tigerescap.ui: tigerabs.uo 
+tigerit.uo: tigertree.uo tigertab.ui 
+tigerseman.ui: tigerabs.uo 
+tigercanon.ui: tigertree.uo tigertemp.ui 
+tigerinterp.uo: tigertree.uo tigertab.ui tigerframe.ui tigerit.uo \
+    tigertemp.ui 
+tigerframe.uo: tigerframe.ui tigertree.uo tigertemp.ui 
+tigertab.uo: tigertab.ui 
+tigertrans.uo: tigertrans.ui tigertree.uo tigerpila.ui tigerframe.ui \
+    tigerit.uo tigertemp.ui tigerabs.uo 
+tigertopsort.uo: tigertopsort.ui tigersres.uo tigerabs.uo 
+tigersres.uo: tigertab.ui tigertips.uo tigertemp.ui tigerabs.uo \
+    tigertrans.ui 
+tigertrans.ui: tigertree.uo tigerframe.ui tigertemp.ui tigerabs.uo 
+tigerseman.uo: tigerseman.ui tigersres.uo tigertab.ui tigerpila.ui \
+    tigertopsort.ui tigertemp.ui tigerabs.uo tigertrans.ui 
+tigergrm.uo: tigergrm.ui tigernlin.uo tigerabs.uo 
+tigerescap.uo: tigerescap.ui tigertab.ui tigerabs.uo 
+tigertree.uo: tigertemp.ui 
+tigergrm.ui: tigerabs.uo 
+tigertopsort.ui: tigertab.ui tigertips.uo tigerabs.uo 
+tigerframe.ui: tigertree.uo tigertemp.ui 
+tigertemp.uo: tigertemp.ui 
+COMPLETADO*)
 
 fun arrayExp{size, init} =
 let

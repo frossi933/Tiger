@@ -375,9 +375,10 @@ fun transExp (venv, tenv) =
 							((accvar::acs), tabInserta(name, Var {ty=trty(typ,tenv,nl), access=accvar,level=getActualLev() },e))
 						end
                     val (accs, env'') = List.foldl insertParams ([],env) params
+                    val accs' = accs (*tigerframe.slAccess() :: accs*)
                     val {ty=bodyTy, exp=bodyExp} = transExp(env'', tenv) body
                     val lev = (case tabBusca (name, env) of
-                                  SOME (Func {level, label, formals, result, extern}) => (tigerframe.insertAccs (getFrame level) accs;level)
+                                  SOME (Func {level, label, formals, result, extern}) => ((tigerframe.insertAccs (getFrame level) accs');level)
                                   | _ => error("error interno en functiondec",nl))
                     val _ = procEntryExit{level=lev, body=bodyExp}
                     val _ = (case result of
