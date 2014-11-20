@@ -75,7 +75,7 @@ fun formals({accList=f, ...}: frame) = ((print "ahreloco");(List.app accStr (!f)
 		| aux(n, h::t) = InFrame(n)::aux(n+argsGap, t)
 	in aux(argsInicial, f) end *)
 fun maxRegFrame(f: frame) = !(#actualReg f)
-fun insertAccs ({accList, name, ...}:frame) acs = (print (name^"->"); List.app accStr acs; accList := acs)
+fun insertAccs (f:frame) acs = (print (#name(f)^"->"); List.app accStr acs; #accList(f) := acs; f)
 fun allocArg (f: frame) b = 
 	case b of
 	true =>
@@ -93,5 +93,5 @@ fun exp(InFrame k) e = MEM(BINOP(PLUS, TEMP(fp), CONST k))
 | exp(InReg l) e = TEMP l
 fun externalCall(s, l) = CALL(NAME s, l)
 
-fun procEntryExit1 (frame,body) = body
+fun procEntryExit1 (frame,body) = (*COMPLETAR*)body
 end

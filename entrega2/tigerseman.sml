@@ -379,10 +379,13 @@ fun transExp (venv, tenv) =
                     val {ty=bodyTy, exp=bodyExp} = transExp(env'', tenv) body
                     val lev = (case tabBusca (name, env) of
                                   SOME (Func {level, label, formals, result, extern}) =>
-					
- ((List.app tigerframe.accStr accs');(tigerframe.insertAccs (getFrame level) accs');level)
+						((List.app tigerframe.accStr accs');
+						let val newLevel = tigertrans.insertAccs level accs'
+							val _ = tabRInserta(name, Func {level=newLevel, label=label, formals=formals, result=result, extern=extern}, env)						
+						in newLevel
+						end)
                                   | _ => error("error interno en functiondec",nl))
-                    val _ = procEntryExit{level=lev, body=bodyExp}
+                    val _ = tigertrans.functionDec(bodyExp, lev, (result=NONE))
                     val _ = (case result of
                                 NONE => if not(tiposIguales bodyTy TUnit) then error("La funcion "^name^" no debe devolver nada", nl) 
                                                                           else ()
