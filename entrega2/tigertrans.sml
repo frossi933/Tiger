@@ -200,7 +200,7 @@ in
 end
 
 
-fun callExp (f, isproc, extern, {level, parent, frame},la) =
+fun callExp (f, isproc, extern, {level, parent, frame},(la:exp list)) =
 	let fun menAmay 0 = TEMP fp
 	    | menAmay n = MEM (BINOP(PLUS, menAmay (n-1), CONST fpPrevLev))
 	    val fplev=if level=getActualLev() then
@@ -218,7 +218,7 @@ fun callExp (f, isproc, extern, {level, parent, frame},la) =
 	                          | _ => let val t' = newtemp()
 	                                 in preparaArgs t ((TEMP t')::rt, (MOVE (TEMP t', unEx h)::re))
 	                                 end)
-	    val (ta, la')=preparaArgs (rev la) ([],[])
+	    val (ta, la')=preparaArgs (la) ([],[]) (*le saq un rev*)
 	    val ta' = if extern then ta else fplev::ta
 	in
 	    if isproc then Nx (seq (la'@[EXP (CALL(NAME f, ta'))]))

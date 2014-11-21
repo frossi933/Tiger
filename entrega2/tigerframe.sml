@@ -60,7 +60,7 @@ datatype frag = PROC of {body: tigertree.stm, frame: frame}
 	| STRING of tigertemp.label * string
 fun newFrame{name, formals} = {name=name,
 							formals=formals,
-							accList=ref [],
+							accList=ref [InFrame 0],
 							locals=[],
 							actualArg=ref argsInicial,
 							actualLocal=ref localsInicial,
@@ -81,8 +81,11 @@ fun allocArg (f: frame) b =
 	true =>
 		let	val ret = (!(#actualArg f)+argsOffInicial)*wSz
 			val _ = #actualArg f := !(#actualArg f)+1
+			val _ = #accList f := (!(#accList f))@[InFrame ret]
 		in	InFrame ret end
-	| false => InReg(tigertemp.newtemp())
+	| false => let val tmp = tigertemp.newtemp()
+				   val _ = #accList f := (!(#accList f))@[InReg tmp]
+			   in InReg tmp end
 fun allocLocal (f: frame) b = 
 	case b of
 	true =>

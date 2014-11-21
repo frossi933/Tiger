@@ -341,51 +341,56 @@ fun transExp (venv, tenv) =
             val pnl = #2(List.hd fs)
             val _ = if (Binaryset.numItems (Binaryset.addList ((Binaryset.empty String.compare), (List.map (#name o #1) fs))) <> List.length fs) 
                     then error("multiples declaraciones de una funcion en un batch", pnl) else ()
-            fun getFormals (ps, nl) = List.map (fn {typ, ... } => trty (typ, tenv, nl)) ps
+            fun procFormals (ps, nl) = List.map (fn {typ, escape, ... } => (trty (typ, tenv, nl), !escape)) ps
             fun genFuncEntry ({name, params, result=NONE, body}, nl) =
                       let(*let val _ = print name*)
-                          val formalsTips = getFormals(params,nl)
-                          val formalsBool = List.map (fn {escape, ...} => !escape) params
+                          val (formalsTips, formalsBool) = ListPair.unzip (procFormals(params,nl))
                           val (lev', label')= if name="_tigermain" then (outermost, name) 
-                                              else let val lab = (tigertemp.newlabel())^name in (newLevel {parent=topLevel(), name=lab, formals=formalsBool}, lab) end
+                                              else let val lab = (tigertemp.newlabel())^name 
+												   in (newLevel {parent=topLevel(), name=lab, formals=formalsBool}, lab) end
                       in (name, Func {level=lev', label=label', formals = formalsTips, extern=false, result=TUnit})
                       end
             | genFuncEntry ({name, params, result=SOME t, body}, nl) = 
                       let(*let val _ = print name*)
                       in (case tabBusca(t,tenv) of
-                             SOME typ => let val formalsTips = getFormals(params,nl)
-                                             val formalsBool = List.map (fn {escape, ...} => !escape) params
+                             SOME typ => let val (formalsTips, formalsBool) = ListPair.unzip (procFormals(params,nl))
                                              val lab = tigertemp.newlabel()^name
                                              val lev'= newLevel {parent=topLevel(), name=lab, formals=formalsBool}
-                                         in (name, Func {level=lev', label=lab, 
-                                                         formals = formalsTips, extern=false, 
-                                                         result=typ})
+                                         in (name, Func {level=lev', label=lab, formals = formalsTips, extern=false, result=typ})
                                          end
                              | NONE => error("No existe el tipo2 "^t, nl))
-                       end
+                      end
             val venv' = tigertab.tabInserList (venv, List.map genFuncEntry fs)
 			val _ = preFunctionDec()
             fun trbody (({name, params, result, body}, nl), env) = 
                 let
-					
-                    fun insertParams ({typ, name, escape},(acs,e)) = 
-						let
-							val accvar = allocArg (topLevel()) (!escape)
-						in
-							((accvar::acs), tabInserta(name, Var {ty=trty(typ,tenv,nl), access=accvar,level=getActualLev() },e))
+                    val lev = (case tabBusca (name, env) of
+                                  SOME (Func {level, ...}) => level
+                                  | _ => error("error interno en functiondec",nl))
+                    val _ = pushLevel lev
+                    fun insertParams ({typ, name, escape}, env') = let val accvar = allocArg (topLevel()) (!escape)
+																  in tabInserta(name, Var {ty=trty(typ,tenv,nl),access=accvar,level=getActualLev()}, env') end
+					val env'' = List.foldl insertParams env params (* ver si es necesario el static link aca *)
+
+                                  
+                                  
+(*                    fun insertParams ({typ, name, escape},(acs,e)) = 
+						let	val accvar = allocArg (topLevel()) (!escape)
+						in	((accvar::acs), tabInserta(name, Var {ty=trty(typ,tenv,nl), access=accvar,level=getActualLev() },e))
 						end
                     val (accs, env'') = List.foldl insertParams ([],env) params
-                    val accs' = accs (*tigerframe.slAccess() :: accs*)
-                    val {ty=bodyTy, exp=bodyExp} = transExp(env'', tenv) body
+                    val accs' = accs 			tigerframe.slAccess() :: accs
                     val lev = (case tabBusca (name, env) of
                                   SOME (Func {level, label, formals, result, extern}) =>
 						((List.app tigerframe.accStr accs');
 						let val newLevel = tigertrans.insertAccs level accs'
 							val _ = tabRInserta(name, Func {level=newLevel, label=label, formals=formals, result=result, extern=extern}, env)						
 						in newLevel
-						end)
+						end) 
                                   | _ => error("error interno en functiondec",nl))
-                    val _ = tigertrans.functionDec(bodyExp, lev, (result=NONE))
+					val _ = pushLevel lev*)
+					val {ty=bodyTy, exp=bodyExp} = transExp(env'', tenv) body
+                    val _ = tigertrans.functionDec(bodyExp, topLevel(), (result=NONE))
                     val _ = (case result of
                                 NONE => if not(tiposIguales bodyTy TUnit) then error("La funcion "^name^" no debe devolver nada", nl) 
                                                                           else ()
@@ -393,6 +398,7 @@ fun transExp (venv, tenv) =
                                                 SOME t => if not(tiposIguales bodyTy t) then error("Error de tipo de retorno de la funcion "^name, nl)
                                                                                         else ()
                                                 | NONE => error("No existe el tipo3 "^st, nl)))
+                    val _ = popLevel()
                 in () end
             val _ = List.map (fn f => trbody(f, venv')) fs
 			val _ = postFunctionDec()
