@@ -1,4 +1,5 @@
-signature tigertrans = sig
+signature tigertrans =
+sig
 
 exception breakexc
 exception divCero
@@ -8,14 +9,14 @@ type access = tigerframe.access
 type frag = tigerframe.frag
 val outermost : level
 val newLevel : {parent: level, name: tigertemp.label,
-				formals: bool list} -> level
+								formals: bool list} -> level
 val getFrame : level -> tigerframe.frame
 val formals : level -> access list
 val getActualLev : unit -> int
 val allocArg : level -> bool -> access
 val allocLocal : level -> bool -> access
 
-type exp 
+type exp
 val procEntryExit : {level: level, body: exp} -> unit
 val getResult : unit -> frag list
 val insertAccs : level -> (access list) -> level
